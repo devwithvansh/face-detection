@@ -1,0 +1,97 @@
+# =========================
+# Python
+# =========================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+*.egg-info/
+build/
+dist/
+
+# Virtual Environments
+venv/
+.venv/
+env/
+
+# Environment Variables
+.env
+.env.local
+
+# =========================
+# Node / Frontend
+# =========================
+frontend/node_modules/
+frontend/dist/
+node_modules/
+dist/
+.vite/
+
+npm-debug.log*
+yarn-error.log*
+
+# =========================
+# Storage / Face Data
+# =========================
+storage/unknown/
+storage/profiles/
+storage/tmp/
+storage/cache/
+
+# Captured images / embeddings
+*.npy
+*.npz
+*.pkl
+*.joblib
+
+# =========================
+# AI Models
+# =========================
+*.pt
+*.pth
+*.onnx
+*.weights
+*.engine
+backend/models/*.pt
+backend/models/*.onnx
+
+# =========================
+# Database / Runtime
+# =========================
+*.db
+*.sqlite
+*.sqlite3
+
+camera_cache/
+attendance_exports/
+logs/
+cache/
+
+# =========================
+# Docker
+# =========================
+docker-data/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS files
+# =========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# =========================
+# Temporary
+# =========================
+tmp/
+temp/
+*.tmp

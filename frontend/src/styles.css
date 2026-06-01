@@ -1,0 +1,142 @@
+body {
+  margin: 0;
+}
+
+.appShell {
+  min-height: 100vh;
+}
+
+.content {
+  margin-left: 264px;
+  padding: 96px 28px 32px;
+}
+
+.loginStrip {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.loginStrip input {
+  height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+  padding: 0 10px;
+  border-radius: 6px;
+}
+
+.pageHeader,
+.filterPanel,
+.formPanel {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.filterPanel,
+.formPanel,
+.tablePanel,
+.videoPanel,
+.queueGrid {
+  padding: 18px;
+  border: 1px solid #dfe5db;
+}
+
+.formPanel,
+.filterPanel {
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.videoPanel {
+  min-height: 520px;
+  display: grid;
+  place-items: center;
+  background: #1a1f1b;
+}
+
+.videoPanel img {
+  width: 100%;
+  max-height: 72vh;
+  object-fit: contain;
+}
+
+.tablePanel {
+  display: grid;
+  gap: 10px;
+}
+
+.gridRow,
+.detectionRow {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid #e2e7de;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.detectionRow {
+  grid-template-columns: 1fr 120px 80px;
+}
+
+.personnelGrid {
+  grid-template-columns: 120px 1.4fr 120px 140px 140px 110px;
+}
+
+.attendanceGrid {
+  grid-template-columns: 90px 130px 120px 1fr 1fr 80px;
+}
+
+.queueGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 16px;
+}
+
+.unknownCard {
+  display: grid;
+  gap: 10px;
+}
+
+.unknownCard img {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 8px;
+  background: #e8ece5;
+}
+
+.registrationPreview {
+  width: 100%;
+  max-height: 280px;
+  object-fit: contain;
+  border-radius: 8px;
+  background: #111;
+}
+
+.dialogForm {
+  display: grid;
+  gap: 16px;
+  padding-top: 12px;
+}
+
+@media (max-width: 900px) {
+  .content {
+    margin-left: 0;
+    padding: 88px 14px 24px;
+  }
+
+  .MuiDrawer-root {
+    display: none;
+  }
+
+  .personnelGrid,
+  .attendanceGrid,
+  .detectionRow {
+    grid-template-columns: 1fr;
+  }
+}
