@@ -8,12 +8,6 @@ export const api = axios.create({ baseURL: API_BASE });
 let unauthorizedHandler = null;
 let refreshTimer = null;
 
-// ── Token refresh helpers ─────────────────────────────────────────────────────
-
-/**
- * Parse the expiry time from a JWT (without verifying signature).
- * Returns a Date or null.
- */
 function getTokenExpiry(token) {
   try {
     const payload = JSON.parse(atob(token.split('.')[1]));
@@ -23,10 +17,12 @@ function getTokenExpiry(token) {
   }
 }
 
-/**
- * Schedule a token refresh ~5 minutes before expiry.
- * If the token expires in < 5 minutes, refresh immediately.
- */
+export function isTokenExpired(token) {
+  const expiry = getTokenExpiry(token);
+  if (!expiry) return true;
+  return Date.now() > expiry.getTime() - 10_000;
+}
+
 function scheduleRefresh(token) {
   if (refreshTimer) {
     clearTimeout(refreshTimer);
@@ -35,9 +31,14 @@ function scheduleRefresh(token) {
   const expiry = getTokenExpiry(token);
   if (!expiry) return;
 
-  const now = Date.now();
-  const msUntilExpiry = expiry.getTime() - now;
-  const refreshIn = Math.max(0, msUntilExpiry - 5 * 60 * 1000); // 5 min before expiry
+  const msUntilExpiry = expiry.getTime() - Date.now();
+
+  if (msUntilExpiry < 10_000) {
+    if (unauthorizedHandler) unauthorizedHandler();
+    return;
+  }
+
+  const refreshIn = Math.max(0, msUntilExpiry - 5 * 60 * 1000);
 
   refreshTimer = setTimeout(async () => {
     try {
@@ -47,28 +48,66 @@ function scheduleRefresh(token) {
       setAuthToken(newToken);
       scheduleRefresh(newToken);
     } catch {
-      // If refresh fails (token already expired), trigger logout
       if (unauthorizedHandler) unauthorizedHandler();
     }
   }, refreshIn);
 }
 
-// ── Interceptors ──────────────────────────────────────────────────────────────
+// Track in-flight refresh to avoid parallel logouts
+let isRefreshing = false;
+let failedQueue = [];
+
+function processQueue(error, token = null) {
+  failedQueue.forEach((prom) => {
+    if (error) prom.reject(error);
+    else prom.resolve(token);
+  });
+  failedQueue = [];
+}
 
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    if (error.response?.status === 401 && unauthorizedHandler) {
-      // Don't trigger logout for the refresh endpoint itself
-      if (!error.config?.url?.includes('/auth/refresh')) {
-        unauthorizedHandler();
+  async (error) => {
+    const originalRequest = error.config;
+
+    if (
+      error.response?.status === 401 &&
+      !originalRequest._retry &&
+      !originalRequest.url?.includes('/auth/login') &&
+      !originalRequest.url?.includes('/auth/refresh')
+    ) {
+      if (isRefreshing) {
+        return new Promise((resolve, reject) => {
+          failedQueue.push({ resolve, reject });
+        }).then((token) => {
+          originalRequest.headers.Authorization = `Bearer ${token}`;
+          return api(originalRequest);
+        });
+      }
+
+      originalRequest._retry = true;
+      isRefreshing = true;
+
+      try {
+        const { data } = await api.post('/auth/refresh');
+        const newToken = data.access_token;
+        localStorage.setItem('token', newToken);
+        setAuthToken(newToken);
+        processQueue(null, newToken);
+        originalRequest.headers.Authorization = `Bearer ${newToken}`;
+        return api(originalRequest);
+      } catch (refreshError) {
+        processQueue(refreshError, null);
+        if (unauthorizedHandler) unauthorizedHandler();
+        return Promise.reject(refreshError);
+      } finally {
+        isRefreshing = false;
       }
     }
+
     return Promise.reject(error);
   },
 );
-
-// ── Exports ───────────────────────────────────────────────────────────────────
 
 export function setAuthToken(token) {
   if (token) {
@@ -85,6 +124,15 @@ export function setAuthToken(token) {
 
 export function setUnauthorizedHandler(handler) {
   unauthorizedHandler = handler;
+}
+
+/**
+ * Build a WebSocket URL with the auth token as a query param.
+ * WS connections cannot send Authorization headers, so token goes in the URL.
+ */
+export function buildWsUrl(path, token) {
+  const base = `${WS_BASE}${path}`;
+  return token ? `${base}?token=${encodeURIComponent(token)}` : base;
 }
 
 export function storageUrl(path) {

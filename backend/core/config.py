@@ -20,7 +20,6 @@ class Settings(BaseSettings):
 
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
-    # Increased to 24 hours — prevents constant session expiry
     access_token_expire_minutes: int = 1440
 
     admin_username: str = "admin"
@@ -40,19 +39,15 @@ class Settings(BaseSettings):
         if missing:
             raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
-    # ── Recognition accuracy settings ──────────────────────────────────────────
-    # Lowered threshold: accepts weaker matches (helps with tilted/far faces).
-    # The tradeoff is slightly more false positives — raise back to 0.45 if needed.
     recognition_threshold: float = 0.35
-
-    # Unknown threshold: similarity above this means "same unknown person, skip".
     unknown_threshold: float = 0.65
-
-    # How long to suppress the same unknown person's popup (5 minutes).
     duplicate_window_seconds: int = 300
 
-    # If a known person hasn't been seen for 5 minutes, mark EXIT.
-    exit_absence_seconds: int = 300
+    # Minimum seconds between two punches for the same person.
+    # Reappearance within this window is suppressed (not logged).
+    # Reappearance AFTER this window toggles ENTRY→EXIT or EXIT→ENTRY.
+    # Admin can override any individual log at any time.
+    exit_absence_seconds: int = 300  # 5 minutes default
 
     camera_sources: str = "webcam=0"
     storage_dir: str = "storage"

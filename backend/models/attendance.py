@@ -12,6 +12,11 @@ class AttendanceLog(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     personnel_id: Mapped[int] = mapped_column(ForeignKey("personnel.id"), nullable=False, index=True)
     camera_id: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    # Unified timestamp — when this punch happened
+    timestamp: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False, index=True
+    )
+    # Kept for backward compat and reporting clarity
     entry_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     exit_time: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False)

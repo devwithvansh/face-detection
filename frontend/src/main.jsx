@@ -1,29 +1,18 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, NavLink, Route, Routes, Navigate } from 'react-router-dom';
-import {
-  AppBar,
-  Alert,
-  Box,
-  Button,
-  CssBaseline,
-  Drawer,
-  List,
-  ListItemButton,
-  ListItemIcon,
-  ListItemText,
-  ThemeProvider,
-  Toolbar,
-  Typography,
-  createTheme,
-} from '@mui/material';
+import { BrowserRouter, NavLink, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { CssBaseline, ThemeProvider, createTheme, Button } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import HistoryIcon from '@mui/icons-material/History';
-import LogoutIcon from '@mui/icons-material/Logout';
 import ShieldIcon from '@mui/icons-material/Shield';
-import { api, setAuthToken, setUnauthorizedHandler, WS_BASE } from './services/api.js';
+import WarningAmberIcon from '@mui/icons-material/WarningAmber';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import SettingsIcon from '@mui/icons-material/Settings';
+import CameraAltIcon from '@mui/icons-material/CameraAlt';
+import LogoutIcon from '@mui/icons-material/Logout';
+import { api, setAuthToken, setUnauthorizedHandler, buildWsUrl, isTokenExpired } from './services/api.js';
 import LiveDashboard from './pages/LiveDashboard.jsx';
 import PersonnelPage from './pages/PersonnelPage.jsx';
 import UnknownQueuePage from './pages/UnknownQueuePage.jsx';
@@ -31,26 +20,23 @@ import AttendancePage from './pages/AttendancePage.jsx';
 import UnknownRegistrationDialog from './components/UnknownRegistrationDialog.jsx';
 import './styles.css';
 
-const drawerWidth = 260;
-
-/* ── Army dark theme ───────────────────────────────────────── */
 const armyTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary:    { main: '#3dff7a' },
-    secondary:  { main: '#f0b429' },
-    error:      { main: '#ff3b3b' },
-    background: { default: '#0b0e0c', paper: '#111714' },
-    text:       { primary: '#c8d4c0', secondary: '#5e7060' },
+    primary:    { main: '#4caf50' },
+    secondary:  { main: '#ffb300' },
+    error:      { main: '#e53935' },
+    background: { default: '#0f1410', paper: '#1e2820' },
+    text:       { primary: '#d4ddd5', secondary: '#6b7d6c' },
   },
-  shape: { borderRadius: 4 },
-  typography: { fontFamily: "'Exo 2', sans-serif" },
+  shape: { borderRadius: 3 },
+  typography: { fontFamily: "'Barlow', sans-serif" },
   components: {
-    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#0b0e0c' } } },
+    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#0f1410' } } },
   },
 });
 
-/* ── Clock component ─────────────────────────────────────── */
+/* ── Clock ── */
 function LiveClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -58,20 +44,30 @@ function LiveClock() {
     return () => clearInterval(t);
   }, []);
   return (
-    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, color: '#5e7060', letterSpacing: 1 }}>
-      {time.toUTCString().slice(17, 25)} UTC
-    </span>
+    <>
+      <div className="topbarMeta" style={{ alignItems: 'center' }}>
+        <div className="topbarMetaLabel">Time</div>
+        <div className="topbarMetaValue" style={{ fontSize: 16, fontFamily: "'JetBrains Mono', monospace" }}>
+          {time.toUTCString().slice(17, 25)} UTC
+        </div>
+      </div>
+      <div className="topbarMeta" style={{ alignItems: 'center' }}>
+        <div className="topbarMetaLabel">Date</div>
+        <div className="topbarMetaValue" style={{ fontSize: 14 }}>
+          {time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+        </div>
+      </div>
+    </>
   );
 }
 
-/* ── Login Page ──────────────────────────────────────────── */
-function LoginPage({ onLogin }) {
+/* ── Login ── */
+function LoginPage({ onLogin, externalError }) {
   const [creds, setCreds] = useState({ username: 'admin', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e?.preventDefault();
+  const handleSubmit = async () => {
     setError('');
     setLoading(true);
     const body = new URLSearchParams();
@@ -82,38 +78,29 @@ function LoginPage({ onLogin }) {
       localStorage.setItem('token', data.access_token);
       onLogin(data.access_token);
     } catch (err) {
-      setError(err.response?.data?.detail || 'Authentication failed. Check credentials.');
+      setError(err.response?.data?.detail || 'Authentication failed.');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleKey = (e) => { if (e.key === 'Enter') handleSubmit(); };
-
   return (
     <div className="loginPage">
       <div className="loginCard">
         <div className="loginLogo">
-          <div className="loginShield">
-            <ShieldIcon fontSize="large" />
-          </div>
-          <div className="loginTitle">Sentinel</div>
-          <div className="loginSubtitle">Defence Surveillance System</div>
+          <div className="loginShield"><ShieldIcon fontSize="large" /></div>
+          <div className="loginTitle">Army Surveillance</div>
+          <div className="loginSubtitle">Face Recognition & Access Control</div>
         </div>
-
-        <div className="loginClassification">
-          ⬛ RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY
-        </div>
-
+        <div className="loginClassification">⬛ Restricted Access — Authorised Personnel Only</div>
         <div className="loginFields">
           <div className="loginField">
             <label>Operator ID</label>
             <input
               type="text"
-              placeholder="Enter username"
               value={creds.username}
               onChange={(e) => setCreds({ ...creds, username: e.target.value })}
-              onKeyDown={handleKey}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               autoComplete="username"
             />
           </div>
@@ -124,13 +111,13 @@ function LoginPage({ onLogin }) {
               placeholder="Enter password"
               value={creds.password}
               onChange={(e) => setCreds({ ...creds, password: e.target.value })}
-              onKeyDown={handleKey}
+              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               autoComplete="current-password"
             />
           </div>
-
-          {error && <div className="loginError">⚠ {error}</div>}
-
+          {(externalError || error) && (
+            <div className="loginError">⚠ {externalError || error}</div>
+          )}
           <Button className="loginBtn" onClick={handleSubmit} disabled={loading}>
             {loading ? 'Authenticating…' : 'Authenticate'}
           </Button>
@@ -140,187 +127,240 @@ function LoginPage({ onLogin }) {
   );
 }
 
-/* ── Main App ────────────────────────────────────────────── */
+/* ── Sidebar ── */
+function Sidebar({ unknownCount }) {
+  const location = useLocation();
+
+  const nav = [
+    { to: '/',          label: 'Live Surveillance', icon: <DashboardIcon fontSize="small" /> },
+    { to: '/cameras',   label: 'Cameras',           icon: <CameraAltIcon fontSize="small" /> },
+    { to: '/personnel', label: 'Personnel',          icon: <BadgeIcon fontSize="small" /> },
+    { to: '/unknown',   label: 'Unknown Queue',      icon: <PersonSearchIcon fontSize="small" />, badge: unknownCount },
+    { to: '/attendance',label: 'Access Logs',        icon: <HistoryIcon fontSize="small" /> },
+    { to: '/alerts',    label: 'Alerts',             icon: <WarningAmberIcon fontSize="small" />, badge: 3 },
+    { to: '/reports',   label: 'Reports',            icon: <AssessmentIcon fontSize="small" /> },
+    { to: '/settings',  label: 'Settings',           icon: <SettingsIcon fontSize="small" /> },
+  ];
+
+  return (
+    <div className="sidebar">
+      <div className="sidebarLogo">
+        <div className="sidebarLogoIcon">🎖️</div>
+        <div className="sidebarLogoText">
+          <div className="sidebarLogoTitle">Army<br />Surveillance</div>
+          <div className="sidebarLogoSub">System v2.0</div>
+        </div>
+      </div>
+
+      <nav className="sidebarNav">
+        {nav.map(({ to, label, icon, badge }) => (
+          <NavLink
+            key={to}
+            to={to}
+            end={to === '/'}
+            className={({ isActive }) => `navItem${isActive ? ' active' : ''}`}
+          >
+            <span className="navItemIcon">{icon}</span>
+            {label}
+            {badge > 0 && <span className="navBadge">{badge}</span>}
+          </NavLink>
+        ))}
+      </nav>
+
+      <div className="sidebarMotto">
+        <div className="sidebarMottoText">Service Before Self</div>
+        <div className="sidebarMottoCap">Duty • Honor • Country</div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Topbar ── */
+function Topbar({ token, onLogout, detections }) {
+  const known   = detections.filter((d) => d.known).length;
+  const unknown = detections.filter((d) => !d.known).length;
+
+  return (
+    <div className="topbar">
+      <div className="topbarTitle">
+        <div className="topbarTitleMain">Army Surveillance System</div>
+        <div className="topbarTitleSub">Face Recognition &amp; Access Control</div>
+      </div>
+
+      {/* Stats */}
+      <div className="topbarStats">
+        <div className="topbarStat known">
+          <div className="topbarStatLabel">Known</div>
+          <div className="topbarStatValue">{known}</div>
+          <div className="topbarStatIcon">👤</div>
+        </div>
+        <div className="topbarStat unknown">
+          <div className="topbarStatLabel">Unknown</div>
+          <div className="topbarStatValue">{unknown}</div>
+          <div className="topbarStatIcon" style={{ color: 'var(--red)' }}>❓</div>
+        </div>
+        <div className="topbarStat detections">
+          <div className="topbarStatLabel">Detections</div>
+          <div className="topbarStatValue">{detections.length}</div>
+          <div className="topbarStatIcon">🎯</div>
+        </div>
+      </div>
+
+      {/* System status */}
+      <div className="topbarStatus" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
+        <div className="topbarMetaLabel">System Status</div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+          <div className="topbarStatusDot" />
+          <div className="topbarStatusText" style={{ fontSize: 12 }}>Operational</div>
+        </div>
+      </div>
+
+      <LiveClock />
+
+      {/* Operator */}
+      <div className="topbarOperator" onClick={onLogout} title="Click to logout">
+        <div className="topbarOperatorAvatar">🪖</div>
+        <div className="topbarOperatorInfo">
+          <div className="topbarOperatorRole">Operator</div>
+          <div className="topbarOperatorUnit">Control Room 01</div>
+        </div>
+        <LogoutIcon style={{ fontSize: 14, color: 'var(--text-muted)', marginLeft: 4 }} />
+      </div>
+    </div>
+  );
+}
+
+/* ── App ── */
 function App() {
-  const [token, setToken] = useState(localStorage.getItem('token') || '');
-  const [authMessage, setAuthMessage] = useState('');
-  const [activeUnknown, setActiveUnknown] = useState(null);
-  const [unknownQueue, setUnknownQueue] = useState([]);
-  const openedUnknownIds = useRef(new Set());
-  const unknownQueueRef = useRef([]);
+  const stored = localStorage.getItem('token') || '';
+  const validToken = stored && !isTokenExpired(stored) ? stored : '';
+  if (stored && !validToken) localStorage.removeItem('token');
 
-  useEffect(() => { unknownQueueRef.current = unknownQueue; }, [unknownQueue]);
+  const [token, setToken]               = useState(validToken);
+  const [sessionExpiredMsg, setSessionExpiredMsg] = useState('');
+  const [activeUnknown, setActiveUnknown]   = useState(null);
+  const [unknownQueue, setUnknownQueue]     = useState([]);
+  const [liveDetections, setLiveDetections] = useState([]);
+  const openedIds   = useRef(new Set());
+  const queueRef    = useRef([]);
 
+  useEffect(() => { queueRef.current = unknownQueue; }, [unknownQueue]);
   useEffect(() => { setAuthToken(token); }, [token]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
       localStorage.removeItem('token');
       setToken('');
-      setAuthMessage('Session expired. Please re-authenticate.');
+      setSessionExpiredMsg('Session expired. Please re-authenticate.');
     });
   }, []);
 
-  /* WebSocket for live unknown detections */
   useEffect(() => {
-    if (!token) return undefined;
-    const ws = new WebSocket(`${WS_BASE}/live`);
-    ws.onmessage = (event) => {
-      const payload = JSON.parse(event.data);
-      if (payload.type !== 'unknown_detected') return;
-      if (openedUnknownIds.current.has(payload.unknown_id)) return;
-      const payloadTime = payload.timestamp ? new Date(payload.timestamp).getTime() : 0;
-      const isDuplicate = unknownQueueRef.current.some((q) => {
-        const qt = q.timestamp ? new Date(q.timestamp).getTime() : 0;
-        return q.camera_id === payload.camera_id && Math.abs(qt - payloadTime) < 30000;
-      });
-      if (isDuplicate) return;
-      openedUnknownIds.current.add(payload.unknown_id);
-      setActiveUnknown((current) => {
-        if (!current) return payload;
-        setUnknownQueue((queue) => {
-          const updated = [...queue, payload];
-          unknownQueueRef.current = updated;
-          return updated;
-        });
-        return current;
-      });
+    if (!token) return;
+    let ws, ping, reconnectTimer, destroyed = false;
+
+    function connect() {
+      if (destroyed) return;
+      ws = new WebSocket(buildWsUrl('/live', token));
+
+      ws.onmessage = (e) => {
+        try {
+          const p = JSON.parse(e.data);
+          if (p.type === 'frame') {
+            setLiveDetections(p.detections || []);
+          }
+          if (p.type === 'unknown_detected') {
+            if (openedIds.current.has(p.unknown_id)) return;
+            const pt = p.timestamp ? new Date(p.timestamp).getTime() : 0;
+            const dup = queueRef.current.some((q) => {
+              const qt = q.timestamp ? new Date(q.timestamp).getTime() : 0;
+              return q.camera_id === p.camera_id && Math.abs(qt - pt) < 30000;
+            });
+            if (dup) return;
+            openedIds.current.add(p.unknown_id);
+            setActiveUnknown((cur) => {
+              if (!cur) return p;
+              setUnknownQueue((q) => { const u = [...q, p]; queueRef.current = u; return u; });
+              return cur;
+            });
+          }
+        } catch { /**/ }
+      };
+
+      ws.onclose = (evt) => {
+        clearInterval(ping);
+        if (!destroyed && evt.code !== 1000) reconnectTimer = setTimeout(connect, 3000);
+      };
+
+      ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('ping'), 15000);
+    }
+
+    connect();
+    return () => {
+      destroyed = true;
+      clearInterval(ping);
+      clearTimeout(reconnectTimer);
+      if (ws) ws.close(1000, 'logout');
     };
-    const ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('ping'), 15000);
-    return () => { clearInterval(ping); ws.close(); };
   }, [token]);
 
-  const handleLogin = (newToken) => {
-    setToken(newToken);
-    setAuthMessage('');
-  };
+  const handleLogin = (t) => { setToken(t); setSessionExpiredMsg(''); };
+  const logout = () => { localStorage.removeItem('token'); setToken(''); setSessionExpiredMsg(''); };
 
-  const logout = () => {
-    localStorage.removeItem('token');
-    setToken('');
-  };
+  const showNext = () => setUnknownQueue((q) => { const [n, ...r] = q; queueRef.current = r; setActiveUnknown(n || null); return r; });
+  const clearQueue = () => { setUnknownQueue([]); queueRef.current = []; setActiveUnknown(null); };
 
-  const showNextUnknown = () => {
-    setUnknownQueue((queue) => {
-      const [next, ...rest] = queue;
-      unknownQueueRef.current = rest;
-      setActiveUnknown(next || null);
-      return rest;
-    });
-  };
+  const unknownCount = unknownQueue.length + (activeUnknown ? 1 : 0);
 
-  const clearPopupQueue = () => {
-    setUnknownQueue([]);
-    unknownQueueRef.current = [];
-    setActiveUnknown(null);
-  };
-
-  /* Show login page when unauthenticated */
   if (!token) {
     return (
       <ThemeProvider theme={armyTheme}>
         <CssBaseline />
-        {authMessage && (
-          <div style={{ position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)', zIndex: 9999, minWidth: 340 }}>
-            <Alert severity="warning" onClose={() => setAuthMessage('')}>{authMessage}</Alert>
-          </div>
-        )}
-        <LoginPage onLogin={handleLogin} />
+        <LoginPage onLogin={handleLogin} externalError={sessionExpiredMsg} />
       </ThemeProvider>
     );
   }
-
-  const nav = [
-    ['/', 'Live Surveillance', <DashboardIcon />],
-    ['/personnel', 'Personnel', <BadgeIcon />],
-    ['/unknown', 'Unknown Queue', <PersonSearchIcon />],
-    ['/attendance', 'Access Logs', <HistoryIcon />],
-  ];
 
   return (
     <ThemeProvider theme={armyTheme}>
       <CssBaseline />
       <BrowserRouter>
-        <Box className="appShell">
-          {/* ── Topbar ── */}
-          <AppBar position="fixed" elevation={0}>
-            <Toolbar>
-              <Typography className="appTitle" sx={{ flexGrow: 1 }}>
-                <span className="titleShield">
-                  <ShieldIcon style={{ fontSize: 14 }} />
-                </span>
-                Sentinel
-                <span style={{ fontWeight: 300, opacity: 0.5, fontSize: 14, letterSpacing: 4 }}>|</span>
-                <span style={{ fontSize: 12, fontWeight: 400, letterSpacing: 3, opacity: 0.7 }}>DEFENCE SURVEILLANCE</span>
-              </Typography>
-
-              <div className="systemStatus" style={{ marginRight: 20 }}>
-                <div className="statusDot" />
-                SYSTEM ACTIVE
-              </div>
-
-              <LiveClock />
-
-              <Button
-                className="logoutBtn"
-                startIcon={<LogoutIcon style={{ fontSize: 14 }} />}
-                onClick={logout}
-                sx={{ ml: 2 }}
-              >
-                Logout
-              </Button>
-            </Toolbar>
-          </AppBar>
-
-          {/* ── Sidebar ── */}
-          <Drawer variant="permanent">
-            <div className="sidebarClassification">// SENTINEL OPS</div>
-            <List>
-              {nav.map(([to, label, icon]) => (
-                <ListItemButton
-                  key={to}
-                  component={NavLink}
-                  to={to}
-                  end={to === '/'}
-                >
-                  <ListItemIcon>{icon}</ListItemIcon>
-                  <ListItemText primary={label} />
-                </ListItemButton>
-              ))}
-            </List>
-            <div className="sidebarFooter">
-              VER 2.0 // CLASSIFIED
+        <div className="appShell">
+          <Sidebar unknownCount={unknownCount} />
+          <Topbar token={token} onLogout={logout} detections={liveDetections} />
+          <div className="mainContent">
+            <div className="pageContent">
+              <Routes>
+                <Route path="/"           element={<LiveDashboard token={token} onDetections={setLiveDetections} />} />
+                <Route path="/personnel"  element={<PersonnelPage />} />
+                <Route path="/unknown"    element={<UnknownQueuePage />} />
+                <Route path="/attendance" element={<AttendancePage />} />
+                <Route path="/cameras"    element={<Navigate to="/" replace />} />
+                <Route path="/alerts"     element={<PlaceholderPage title="Alerts" />} />
+                <Route path="/reports"    element={<PlaceholderPage title="Reports" />} />
+                <Route path="/settings"   element={<PlaceholderPage title="Settings" />} />
+              </Routes>
             </div>
-          </Drawer>
-
-          {/* ── Main content ── */}
-          <Box component="main" className="content">
-            {authMessage && (
-              <Alert severity="warning" sx={{ mb: 2 }} onClose={() => setAuthMessage('')}>
-                {authMessage}
-              </Alert>
-            )}
-            <Routes>
-              <Route path="/"           element={<LiveDashboard token={token} />} />
-              <Route path="/personnel"  element={<PersonnelPage />} />
-              <Route path="/unknown"    element={<UnknownQueuePage />} />
-              <Route path="/attendance" element={<AttendancePage />} />
-              {/* redirect old /cameras route */}
-              <Route path="/cameras"    element={<Navigate to="/" replace />} />
-            </Routes>
-          </Box>
-
-          {/* ── Unknown registration popup ── */}
+          </div>
           <UnknownRegistrationDialog
             unknown={activeUnknown}
             open={Boolean(activeUnknown)}
-            onDismiss={showNextUnknown}
-            onRegistered={showNextUnknown}
-            onClearQueue={clearPopupQueue}
+            onDismiss={showNext}
+            onRegistered={showNext}
+            onClearQueue={clearQueue}
           />
-        </Box>
+        </div>
       </BrowserRouter>
     </ThemeProvider>
+  );
+}
+
+function PlaceholderPage({ title }) {
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
+      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 800, letterSpacing: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{title}</div>
+      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'var(--text-muted)', letterSpacing: 2 }}>// MODULE UNDER CONSTRUCTION</div>
+    </div>
   );
 }
 
