@@ -39,9 +39,9 @@ class Settings(BaseSettings):
         if missing:
             raise RuntimeError(f"Missing required environment variables: {', '.join(missing)}")
 
-    recognition_threshold: float = 0.45
+    recognition_threshold: float = 0.40        # CHANGED: was 0.45 — more forgiving across frames/lighting
     unknown_threshold: float = 0.65
-    duplicate_window_seconds: int = 60
+    duplicate_window_seconds: int = 300        # CHANGED: was 60 — suppresses same unknown for 5 mins
     exit_absence_seconds: int = 300
     camera_sources: str = "webcam=0"
     storage_dir: str = "storage"

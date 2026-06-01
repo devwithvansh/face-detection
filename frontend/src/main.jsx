@@ -42,6 +42,15 @@ function App() {
   const [unknownQueue, setUnknownQueue] = useState([]);
   const openedUnknownIds = useRef(new Set());
 
+  // NEW: ref mirror of unknownQueue so the WebSocket handler can read it
+  // without a stale closure (useState value is stale inside useEffect callbacks)
+  const unknownQueueRef = useRef([]);
+
+  // Keep the ref in sync whenever the queue state changes
+  useEffect(() => {
+    unknownQueueRef.current = unknownQueue;
+  }, [unknownQueue]);
+
   useEffect(() => {
     setAuthToken(token);
   }, [token]);
@@ -59,13 +68,34 @@ function App() {
     const ws = new WebSocket(`${WS_BASE}/live`);
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
-      if (payload.type !== 'unknown_detected' || openedUnknownIds.current.has(payload.unknown_id)) {
-        return;
-      }
+
+      // Only care about unknown_detected events
+      if (payload.type !== 'unknown_detected') return;
+
+      // Skip if we already opened a popup for this exact unknown_id
+      if (openedUnknownIds.current.has(payload.unknown_id)) return;
+
+      // NEW: skip if we already have a pending popup from the same camera
+      // within the last 30 seconds — avoids flooding when backend fires
+      // multiple events for the same physical person before dedup kicks in
+      const payloadTime = payload.timestamp ? new Date(payload.timestamp).getTime() : 0;
+      const isDuplicate = unknownQueueRef.current.some((queued) => {
+        const queuedTime = queued.timestamp ? new Date(queued.timestamp).getTime() : 0;
+        return (
+          queued.camera_id === payload.camera_id &&
+          Math.abs(queuedTime - payloadTime) < 30000
+        );
+      });
+      if (isDuplicate) return;
+
       openedUnknownIds.current.add(payload.unknown_id);
       setActiveUnknown((current) => {
         if (!current) return payload;
-        setUnknownQueue((queue) => [...queue, payload]);
+        setUnknownQueue((queue) => {
+          const updated = [...queue, payload];
+          unknownQueueRef.current = updated; // keep ref in sync immediately
+          return updated;
+        });
         return current;
       });
     };
@@ -125,6 +155,7 @@ function App() {
   const showNextUnknown = () => {
     setUnknownQueue((queue) => {
       const [next, ...rest] = queue;
+      unknownQueueRef.current = rest; // keep ref in sync
       setActiveUnknown(next || null);
       return rest;
     });
@@ -132,6 +163,7 @@ function App() {
 
   const clearPopupQueue = () => {
     setUnknownQueue([]);
+    unknownQueueRef.current = []; // keep ref in sync
     setActiveUnknown(null);
   };
 

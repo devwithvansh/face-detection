@@ -5,7 +5,9 @@ from sqlalchemy.orm import Session
 
 from backend.core.security import get_current_user, require_admin
 from backend.database.session import get_db
-from backend.models.personnel import Personnel
+from backend.models.attendance import ActivePresence, AttendanceLog
+from backend.models.personnel import Personnel, FaceEmbedding
+from backend.models.unknown import UnknownFace
 from backend.recognition.embeddings import embedding_service
 from backend.schemas.personnel import PersonnelOut, PersonnelUpdate
 from backend.services.vector_index import vector_index
@@ -48,6 +50,16 @@ def delete_personnel(
     person = db.get(Personnel, personnel_id)
     if person is None:
         raise HTTPException(status_code=404, detail="Personnel not found")
+
+    # Delete all related records first to satisfy foreign key constraints
+    db.query(ActivePresence).filter(ActivePresence.personnel_id == personnel_id).delete()
+    db.query(AttendanceLog).filter(AttendanceLog.personnel_id == personnel_id).delete()
+    db.query(FaceEmbedding).filter(FaceEmbedding.personnel_id == personnel_id).delete()
+    # Clear any unknown faces that were linked to this person
+    db.query(UnknownFace).filter(UnknownFace.registered_personnel_id == personnel_id).update(
+        {"registered_personnel_id": None, "reviewed": False}
+    )
+
     db.delete(person)
     db.commit()
     vector_index.rebuild()

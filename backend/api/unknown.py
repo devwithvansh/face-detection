@@ -97,5 +97,15 @@ async def register_unknown(
     mark_registered_inside(db, person.id, camera_id)
     db.commit()
     vector_index.rebuild()
-    LOGGER.info("REGISTRATION COMPLETE -> cache refreshed")
+
+    # NEW: tell the pipeline this person just registered so the next frame
+    # recognises them immediately (green box) without waiting for vector index warmup
+    embedding_to_cache = cached_embedding
+    if embedding_to_cache is None and source_images:
+        # re-embed the first source image to get a fresh embedding for the cache
+        embedding_to_cache = embedding_service.embed_face(source_images[0])
+    if embedding_to_cache is not None:
+        recognition_pipeline.remember_registered(person.id, embedding_to_cache)
+
+    LOGGER.info("REGISTRATION COMPLETE -> cache refreshed, person_id=%s added to grace window", person.id)
     return {"personnel_id": person.id, "embeddings_added": embeddings}
