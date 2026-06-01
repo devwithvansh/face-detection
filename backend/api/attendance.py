@@ -1,36 +1,45 @@
-from datetime import datetime
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends
+from sqlalchemy.orm import Session, joinedload
 
 from backend.core.security import get_current_user
 from backend.database.session import get_db
 from backend.models.attendance import AttendanceLog
-from backend.schemas.attendance import AttendanceOut
+from backend.models.personnel import Personnel
 
 router = APIRouter(prefix="/attendance", tags=["attendance"])
 
 
-@router.get("", response_model=list[AttendanceOut])
-def attendance(
+@router.get("")
+def list_attendance(
     db: Annotated[Session, Depends(get_db)],
     _: Annotated[dict, Depends(get_current_user)],
-    personnel_id: int | None = None,
     status: str | None = None,
     camera_id: str | None = None,
-    start: datetime | None = Query(default=None),
-    end: datetime | None = Query(default=None),
-) -> list[AttendanceLog]:
-    query = db.query(AttendanceLog)
-    if personnel_id:
-        query = query.filter(AttendanceLog.personnel_id == personnel_id)
+    limit: int = 500,
+) -> list[dict]:
+    query = db.query(AttendanceLog).options(joinedload(AttendanceLog.personnel))
+
     if status:
         query = query.filter(AttendanceLog.status == status.upper())
     if camera_id:
         query = query.filter(AttendanceLog.camera_id == camera_id)
-    if start:
-        query = query.filter(AttendanceLog.entry_time >= start)
-    if end:
-        query = query.filter(AttendanceLog.entry_time <= end)
-    return query.order_by(AttendanceLog.id.desc()).limit(500).all()
+
+    logs = query.order_by(AttendanceLog.id.desc()).limit(limit).all()
+
+    results = []
+    for log in logs:
+        results.append({
+            "id":               log.id,
+            "personnel_id":     log.personnel_id,
+            "army_id":          log.personnel.army_id if log.personnel else None,
+            "full_name":        log.personnel.full_name if log.personnel else None,
+            "rank":             log.personnel.rank if log.personnel else None,
+            "camera_id":        log.camera_id,
+            "entry_time":       log.entry_time.isoformat() if log.entry_time else None,
+            "exit_time":        log.exit_time.isoformat() if log.exit_time else None,
+            "status":           log.status,
+            "confidence_score": log.confidence_score,
+        })
+    return results

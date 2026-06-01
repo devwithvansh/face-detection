@@ -12,9 +12,11 @@ pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
 
 
-def create_access_token(subject: str, role: str) -> str:
-    expires = datetime.now(timezone.utc) + timedelta(minutes=settings.access_token_expire_minutes)
-    payload = {"sub": subject, "role": role, "exp": expires}
+def create_access_token(subject: str, role: str, expires_delta: timedelta | None = None) -> str:
+    if expires_delta is None:
+        expires_delta = timedelta(minutes=settings.access_token_expire_minutes)
+    expires = datetime.now(timezone.utc) + expires_delta
+    payload = {"sub": subject, "role": role, "exp": expires, "iat": datetime.now(timezone.utc)}
     return jwt.encode(payload, settings.jwt_secret_key, algorithm=settings.jwt_algorithm)
 
 
@@ -35,7 +37,10 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]) -> dict[str,
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
         return {"username": username, "role": role}
     except JWTError as exc:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token") from exc
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token expired or invalid. Please log in again.",
+        ) from exc
 
 
 def require_admin(user: Annotated[dict[str, str], Depends(get_current_user)]) -> dict[str, str]:

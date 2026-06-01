@@ -23,27 +23,17 @@ class EmbeddingService:
     def _load_model(self) -> None:
         try:
             from insightface.app import FaceAnalysis
-            import insightface
 
-            # Full pipeline — used when we pass the whole frame
+            # det_size 640 — best for faces that are far from camera
             app = FaceAnalysis(name="buffalo_l", providers=["CPUExecutionProvider"])
             app.prepare(ctx_id=0, det_size=(640, 640))
             self._app = app
-
-            # Recognition-only model — used on pre-cropped faces
-            # This is the w600k_r50 model that produces 512-dim embeddings
             self._rec_model = app.models.get("recognition")
-
             LOGGER.info("InsightFace loaded (full pipeline + recognition model)")
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning("InsightFace unavailable: %s", exc)
 
     def get_faces_from_frame(self, frame_bgr: np.ndarray) -> list:
-        """
-        Run InsightFace detection+recognition on a full frame.
-        Returns list of face objects with .bbox and .embedding attributes.
-        Use this instead of the Haar detector when InsightFace is available.
-        """
         if self._app is None:
             return []
         try:
@@ -56,35 +46,57 @@ class EmbeddingService:
     def embed_face(self, face_bgr: np.ndarray) -> np.ndarray:
         """
         Embed a pre-cropped face image.
-        Strategy:
-          1. Try the recognition-only model on the resized crop (fastest, most reliable)
-          2. Try full pipeline on the crop (slower, re-detects inside crop)
-          3. Fallback: deterministic embedding based on image content (not random hash)
+        Tries multiple strategies and returns the best quality embedding.
+        Enhanced for faces that are partially turned, far from camera, or in variable lighting.
         """
+        if face_bgr is None or face_bgr.size == 0:
+            return self._zero_embedding()
+
+        # Strategy 1: Recognition model on the crop directly
         if self._rec_model is not None:
             emb = self._embed_with_rec_model(face_bgr)
             if emb is not None:
                 return emb
 
+        # Strategy 2: Full pipeline on the crop (re-detects inside crop)
         if self._app is not None:
-            try:
-                faces = self._app.get(face_bgr)
-                if faces:
-                    emb = faces[0].embedding.astype("float32")
-                    return self._normalize(emb)
-            except Exception:  # noqa: BLE001
-                pass
+            emb = self._embed_with_full_pipeline(face_bgr)
+            if emb is not None:
+                return emb
 
-        # Stable fallback — NOT hash-based, uses DCT features that are
-        # consistent across minor lighting/compression changes
+        # Strategy 3: Stable DCT fallback
         return self._stable_fallback_embedding(face_bgr)
+
+    def embed_face_with_augmentation(self, face_bgr: np.ndarray) -> np.ndarray:
+        """
+        Generate a robust embedding by averaging over slight augmentations.
+        Used at registration time to create a more generalised template.
+        This is not used in real-time pipeline (too slow), only for storing embeddings.
+        """
+        base = self.embed_face(face_bgr)
+        augmented = [base]
+
+        # Slight brightness variations (simulates different lighting)
+        for alpha in [0.85, 1.15]:
+            adjusted = cv2.convertScaleAbs(face_bgr, alpha=alpha, beta=0)
+            emb = self.embed_face(adjusted)
+            if emb is not None:
+                augmented.append(emb)
+
+        # Slight horizontal flip (helps with symmetric faces)
+        flipped = cv2.flip(face_bgr, 1)
+        emb = self.embed_face(flipped)
+        if emb is not None:
+            augmented.append(emb)
+
+        # Average all embeddings then re-normalise
+        avg = np.mean(augmented, axis=0).astype("float32")
+        return self._normalize(avg)
 
     def _embed_with_rec_model(self, face_bgr: np.ndarray) -> np.ndarray | None:
         """Use the recognition model directly on a 112x112 face crop."""
         try:
-            # InsightFace recognition expects 112x112 BGR
             resized = cv2.resize(face_bgr, _RECOGNITION_SIZE)
-            # The model's get_feat method takes a list of face images
             if hasattr(self._rec_model, "get_feat"):
                 feat = self._rec_model.get_feat([resized])
                 if feat is not None and len(feat) > 0:
@@ -94,29 +106,46 @@ class EmbeddingService:
             LOGGER.debug("rec_model.get_feat failed: %s", exc)
         return None
 
+    def _embed_with_full_pipeline(self, face_bgr: np.ndarray) -> np.ndarray | None:
+        """Full InsightFace pipeline — slower but handles non-frontal faces better."""
+        try:
+            # Upscale small crops so InsightFace detector works reliably
+            h, w = face_bgr.shape[:2]
+            if h < 112 or w < 112:
+                scale = max(112 / h, 112 / w, 1.0)
+                face_bgr = cv2.resize(face_bgr, (int(w * scale), int(h * scale)))
+
+            faces = self._app.get(face_bgr)
+            if faces:
+                # Pick the face with largest bounding box (most prominent)
+                best = max(faces, key=lambda f: (f.bbox[2] - f.bbox[0]) * (f.bbox[3] - f.bbox[1]))
+                if best.embedding is not None:
+                    return self._normalize(best.embedding.astype("float32"))
+        except Exception:  # noqa: BLE001
+            pass
+        return None
+
     def _normalize(self, emb: np.ndarray) -> np.ndarray:
         norm = np.linalg.norm(emb)
         return emb / max(norm, 1e-12)
 
+    def _zero_embedding(self) -> np.ndarray:
+        return np.zeros(self._dimension, dtype="float32")
+
     def _stable_fallback_embedding(self, face_bgr: np.ndarray) -> np.ndarray:
         """
-        Deterministic embedding based on DCT coefficients.
-        Unlike the old SHA256 hash, DCT features are STABLE across minor
-        lighting/compression changes, so the same face gives similar embeddings.
+        Deterministic DCT-based embedding.
+        More stable than random hash across lighting/compression changes.
         """
-        # Resize to 64x64 grayscale
         gray = cv2.cvtColor(face_bgr, cv2.COLOR_BGR2GRAY) if len(face_bgr.shape) == 3 else face_bgr
         resized = cv2.resize(gray, (64, 64)).astype("float32")
-
-        # Apply DCT and take top-left 32x32 coefficients (low frequency = stable features)
+        # Normalize brightness for lighting invariance
+        resized = (resized - resized.mean()) / (resized.std() + 1e-8) * 64 + 128
         dct = cv2.dct(resized)
-        features = dct[:32, :32].flatten()  # 1024 features
-
-        # Repeat/tile to fill 512 dimensions
-        emb = np.tile(features, 1)[:self._dimension].astype("float32")
+        features = dct[:32, :32].flatten()  # 1024 low-frequency features
+        emb = np.tile(features, 1)[: self._dimension].astype("float32")
         if len(emb) < self._dimension:
             emb = np.pad(emb, (0, self._dimension - len(emb)))
-
         return self._normalize(emb)
 
 

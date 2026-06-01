@@ -61,13 +61,20 @@ async def register_unknown(
 ) -> dict[str, int]:
     if db.query(Personnel).filter(Personnel.army_id == army_id).first():
         raise HTTPException(status_code=409, detail="Army ID already exists")
+
     profile_photo = None
-    person = Personnel(army_id=army_id, full_name=full_name, rank=rank, battalion=battalion, unit=unit)
+    person = Personnel(
+        army_id=army_id, full_name=full_name, rank=rank,
+        battalion=battalion, unit=unit,
+    )
     db.add(person)
     db.flush()
-    embeddings = 0
+
+    embeddings_added = 0
     source_images = []
     cached_embedding = None
+
+    # Use the captured face image from the unknown queue entry
     if unknown_id:
         unknown = db.get(UnknownFace, unknown_id)
         if unknown:
@@ -75,37 +82,53 @@ async def register_unknown(
             unknown_image = cv2.imread(unknown.image_path)
             if unknown_image is not None:
                 source_images.append(unknown_image)
+
+    # Add any extra uploaded images
     for upload in images or []:
         source_images.append(read_uploaded_image(await upload.read()))
+
     if cached_embedding is None and not source_images:
         raise HTTPException(status_code=422, detail="At least one face image is required")
 
+    # Store cached embedding from recognition pipeline (already normalised)
     if cached_embedding is not None:
         vector_index.add(db, person.id, cached_embedding)
-        embeddings += 1
+        embeddings_added += 1
+
+    # Store embeddings for all source images, using augmented variants for robustness
     for index, image in enumerate(source_images):
         if index == 0:
             profile_photo = save_image(image, "profiles", army_id)
             person.profile_photo = profile_photo
-        vector_index.add(db, person.id, embedding_service.embed_face(image))
-        embeddings += 1
+
+        # Raw embedding
+        raw_emb = embedding_service.embed_face(image)
+        vector_index.add(db, person.id, raw_emb)
+        embeddings_added += 1
+
+        # Augmented embedding (better generalisation across angles/lighting)
+        aug_emb = embedding_service.embed_face_with_augmentation(image)
+        vector_index.add(db, person.id, aug_emb)
+        embeddings_added += 1
+
+    # Mark unknown as reviewed
     if unknown_id:
+        unknown = db.get(UnknownFace, unknown_id)
         if unknown:
             unknown.reviewed = True
             unknown.registered_personnel_id = person.id
             recognition_pipeline.remove_unknown_cache(unknown.id)
+
     mark_registered_inside(db, person.id, camera_id)
     db.commit()
     vector_index.rebuild()
 
-    # NEW: tell the pipeline this person just registered so the next frame
-    # recognises them immediately (green box) without waiting for vector index warmup
+    # Cache for immediate recognition (60s grace window)
     embedding_to_cache = cached_embedding
     if embedding_to_cache is None and source_images:
-        # re-embed the first source image to get a fresh embedding for the cache
         embedding_to_cache = embedding_service.embed_face(source_images[0])
     if embedding_to_cache is not None:
         recognition_pipeline.remember_registered(person.id, embedding_to_cache)
 
-    LOGGER.info("REGISTRATION COMPLETE -> cache refreshed, person_id=%s added to grace window", person.id)
-    return {"personnel_id": person.id, "embeddings_added": embeddings}
+    LOGGER.info("REGISTRATION COMPLETE: %s (person_id=%s, embeddings=%s)", full_name, person.id, embeddings_added)
+    return {"personnel_id": person.id, "embeddings_added": embeddings_added}

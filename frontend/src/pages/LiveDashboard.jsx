@@ -1,24 +1,62 @@
-import React from 'react';
-import { useEffect, useMemo, useState } from 'react';
-import { Alert, Box, Chip, Paper, Stack, Typography } from '@mui/material';
-import { WS_BASE } from '../services/api.js';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Alert,
+  Box,
+  Button,
+  Stack,
+  TextField,
+  Typography,
+} from '@mui/material';
+import PlayArrowIcon from '@mui/icons-material/PlayArrow';
+import StopIcon from '@mui/icons-material/Stop';
+import VideocamOffIcon from '@mui/icons-material/VideocamOff';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { api, WS_BASE } from '../services/api.js';
 
 export default function LiveDashboard({ token }) {
-  const [frame, setFrame] = useState('');
+  const [frame, setFrame]           = useState('');
   const [detections, setDetections] = useState([]);
-  const [camera, setCamera] = useState('waiting');
+  const [cameraId, setCameraId]     = useState('waiting');
+  const [feedActive, setFeedActive] = useState(false);
 
+  // Camera control state
+  const [camForm, setCamForm]         = useState({ camera_id: 'gate1', source: '0' });
+  const [activeCameras, setActiveCameras] = useState([]);
+  const [camMessage, setCamMessage]   = useState('');
+  const [camMsgType, setCamMsgType]   = useState('info');
+  const [showFeed, setShowFeed]       = useState(true);
+
+  const wsRef = useRef(null);
+
+  /* Load active cameras on mount */
+  const loadCameras = useCallback(async () => {
+    try {
+      const { data } = await api.get('/camera/active');
+      setActiveCameras(data.cameras || []);
+    } catch {/* ignore */}
+  }, []);
+
+  useEffect(() => { loadCameras(); }, [loadCameras]);
+
+  /* WebSocket for live frames */
   useEffect(() => {
     if (!token) return undefined;
     const ws = new WebSocket(`${WS_BASE}/live`);
+    wsRef.current = ws;
+
+    ws.onopen = () => setFeedActive(true);
+    ws.onclose = () => setFeedActive(false);
+
     ws.onmessage = (event) => {
       const payload = JSON.parse(event.data);
       if (payload.type === 'frame') {
         setFrame(`data:image/jpeg;base64,${payload.image}`);
         setDetections(payload.detections || []);
-        setCamera(payload.camera_id);
+        setCameraId(payload.camera_id || 'unknown');
       }
     };
+
     const ping = setInterval(() => ws.readyState === WebSocket.OPEN && ws.send('ping'), 15000);
     return () => {
       clearInterval(ping);
@@ -27,36 +65,186 @@ export default function LiveDashboard({ token }) {
   }, [token]);
 
   const stats = useMemo(() => {
-    const known = detections.filter((item) => item.known).length;
+    const known = detections.filter((d) => d.known).length;
     return { known, unknown: detections.length - known };
   }, [detections]);
 
-  if (!token) return <Alert severity="info">Login to view realtime camera feeds.</Alert>;
+  const startCamera = async () => {
+    try {
+      await api.post('/camera/start', camForm);
+      await loadCameras();
+      setCamMessage(`Camera "${camForm.camera_id}" activated on source ${camForm.source}.`);
+      setCamMsgType('success');
+    } catch (err) {
+      setCamMessage(err.response?.data?.detail || 'Failed to start camera.');
+      setCamMsgType('error');
+    }
+  };
+
+  const stopCamera = async (idToStop) => {
+    const target = idToStop || camForm.camera_id;
+    try {
+      await api.post('/camera/stop', { camera_id: target, source: camForm.source });
+      await loadCameras();
+      setCamMessage(`Camera "${target}" deactivated.`);
+      setCamMsgType('info');
+    } catch (err) {
+      setCamMessage(err.response?.data?.detail || 'Failed to stop camera.');
+      setCamMsgType('error');
+    }
+  };
+
+  const statusLabel = (status) => {
+    const map = { ENTRY: 'entry', EXIT: 'exit', UNKNOWN: 'unknown', UNKNOWN_DUPLICATE: 'unknown', SEEN: '' };
+    return map[status] || '';
+  };
 
   return (
     <Stack spacing={2}>
-      <Box className="pageHeader">
+      {/* ── Page header ── */}
+      <div className="pageHeader">
         <div>
-          <Typography variant="h4">Live Feed</Typography>
-          <Typography color="text.secondary">Camera {camera}</Typography>
+          <Typography className="pageTitle">Live Surveillance</Typography>
+          <div className="pageSub">
+            FEED: {cameraId.toUpperCase()} &nbsp;|&nbsp; DETECTIONS: {detections.length}
+          </div>
         </div>
-        <Stack direction="row" spacing={1}>
-          <Chip label={`Known ${stats.known}`} color="success" />
-          <Chip label={`Unknown ${stats.unknown}`} color="error" />
-        </Stack>
-      </Box>
-      <Paper className="videoPanel">
-        {frame ? <img src={frame} alt="Live annotated feed" /> : <Typography color="text.secondary">Start a camera to receive frames.</Typography>}
-      </Paper>
-      <Paper className="tablePanel">
-        {detections.map((item) => (
-          <Box className="detectionRow" key={item.detection_id}>
-            <strong>{item.full_name || 'Unknown Person'}</strong>
-            <span>{item.status}</span>
-            <span>{Math.round(item.confidence * 100)}%</span>
-          </Box>
-        ))}
-      </Paper>
+        <div className="statChips">
+          <div className="statChip known">
+            <span>▲</span> KNOWN: {stats.known}
+          </div>
+          <div className="statChip unknown">
+            <span>!</span> UNKNOWN: {stats.unknown}
+          </div>
+        </div>
+      </div>
+
+      {/* ── Camera controls (merged, always visible) ── */}
+      <div className="panel">
+        <div className="panelHeader">Camera Control</div>
+        <div className="cameraControlPanel">
+          <TextField
+            label="Camera ID"
+            size="small"
+            value={camForm.camera_id}
+            onChange={(e) => setCamForm({ ...camForm, camera_id: e.target.value })}
+            sx={{ width: 150 }}
+          />
+          <TextField
+            label="Source"
+            size="small"
+            value={camForm.source}
+            onChange={(e) => setCamForm({ ...camForm, source: e.target.value })}
+            helperText="0 = webcam · RTSP URL"
+            sx={{ width: 200 }}
+          />
+          <Stack direction="row" spacing={1}>
+            <Button variant="contained" startIcon={<PlayArrowIcon />} onClick={startCamera}>
+              Start
+            </Button>
+            <Button variant="outlined" startIcon={<StopIcon />} onClick={() => stopCamera(null)}>
+              Stop
+            </Button>
+          </Stack>
+
+          {/* Toggle live feed visibility */}
+          <Button
+            variant="outlined"
+            startIcon={showFeed ? <VisibilityOffIcon /> : <VisibilityIcon />}
+            onClick={() => setShowFeed((v) => !v)}
+            sx={{ ml: 'auto' }}
+          >
+            {showFeed ? 'Hide Feed' : 'Show Feed'}
+          </Button>
+        </div>
+
+        {/* Active cameras row */}
+        {activeCameras.length > 0 && (
+          <div className="cameraActiveList">
+            {activeCameras.map((id) => (
+              <div className="cameraItem" key={id}>
+                <span>
+                  <span className="statusDot" style={{ display: 'inline-block', marginRight: 8 }} />
+                  <span className="cameraItemId">{id}</span>
+                </span>
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<StopIcon />}
+                  onClick={() => stopCamera(id)}
+                >
+                  Stop
+                </Button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {camMessage && (
+          <div style={{ padding: '0 12px 12px' }}>
+            <Alert severity={camMsgType} onClose={() => setCamMessage('')}>{camMessage}</Alert>
+          </div>
+        )}
+      </div>
+
+      {/* ── Live video feed ── */}
+      {showFeed && (
+        <div className="videoPanel" style={{ position: 'relative' }}>
+          {frame ? (
+            <>
+              <img src={frame} alt="Live annotated surveillance feed" />
+              <div className="videoCamLabel">CAM: {cameraId.toUpperCase()}</div>
+              <div className="videoRecIndicator">
+                <div className="recDot" />
+                REC LIVE
+              </div>
+            </>
+          ) : (
+            <div className="videoPlaceholder">
+              <div className="radar" />
+              <span>Awaiting camera signal…</span>
+              <span style={{ fontSize: 10, opacity: 0.5 }}>Start a camera to receive frames</span>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Detection list ── */}
+      {detections.length > 0 && (
+        <div className="panel">
+          <div className="panelHeader">Active Detections — {detections.length} subject{detections.length !== 1 ? 's' : ''}</div>
+          <div className="detectionTable">
+            <div className="detectionRow" style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, letterSpacing: 1, color: 'var(--color-text-dim)', background: 'transparent', border: 'none', paddingBottom: 4 }}>
+              <span>NAME / ID</span>
+              <span>STATUS</span>
+              <span>CONFIDENCE</span>
+              <span></span>
+            </div>
+            {detections.map((item) => (
+              <div
+                className={`detectionRow ${item.known ? 'known' : 'unknown'}`}
+                key={item.detection_id}
+              >
+                <span className="detectionName">
+                  {item.full_name || `Unknown #${item.unknown_id || '?'}`}
+                  {item.army_id && (
+                    <span style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 11, marginLeft: 8, color: 'var(--color-text-dim)' }}>
+                      [{item.army_id}]
+                    </span>
+                  )}
+                </span>
+                <span className={`detectionStatus ${item.status}`}>
+                  {item.status}
+                </span>
+                <span className="detectionConf">
+                  {Math.round(item.confidence * 100)}%
+                </span>
+                <span></span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </Stack>
   );
 }

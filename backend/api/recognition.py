@@ -45,15 +45,39 @@ async def register(
 ) -> dict[str, int]:
     if db.query(Personnel).filter(Personnel.army_id == army_id).first():
         raise HTTPException(status_code=409, detail="Army ID already exists")
-    person = Personnel(army_id=army_id, full_name=full_name, rank=rank, battalion=battalion, unit=unit)
+
+    person = Personnel(
+        army_id=army_id, full_name=full_name, rank=rank,
+        battalion=battalion, unit=unit,
+    )
     db.add(person)
     db.flush()
+
+    embeddings_added = 0
+    cached_embedding = None
+
     for index, upload in enumerate(images):
         image = read_uploaded_image(await upload.read())
         if index == 0:
             person.profile_photo = save_image(image, "profiles", army_id)
-        vector_index.add(db, person.id, embedding_service.embed_face(image))
+
+        # Use augmented embedding at registration for more robust matching
+        emb = embedding_service.embed_face_with_augmentation(image)
+        vector_index.add(db, person.id, emb)
+        embeddings_added += 1
+
+        # Also add the raw embedding for the first image (gives more variants)
+        if index == 0:
+            raw_emb = embedding_service.embed_face(image)
+            vector_index.add(db, person.id, raw_emb)
+            embeddings_added += 1
+            cached_embedding = raw_emb
+
     mark_registered_inside(db, person.id, camera_id)
     db.commit()
     vector_index.rebuild()
-    return {"personnel_id": person.id, "embeddings_added": len(images)}
+
+    if cached_embedding is not None:
+        recognition_pipeline.remember_registered(person.id, cached_embedding)
+
+    return {"personnel_id": person.id, "embeddings_added": embeddings_added}

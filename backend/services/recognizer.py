@@ -19,11 +19,14 @@ from backend.utils.images import save_image
 
 LOGGER = logging.getLogger(__name__)
 
-# Threshold for duplicate unknown detection
+# How similar an unknown must be to an existing unknown cache entry to be skipped
 UNKNOWN_SIMILARITY_THRESHOLD = 0.35
 
-# Separate lower threshold for grace window (post-registration matching)
+# Post-registration grace window threshold
 GRACE_WINDOW_THRESHOLD = 0.30
+
+# Minimum face size in pixels — smaller detections are skipped (noise reduction)
+MIN_FACE_SIZE = 40
 
 
 @dataclass
@@ -54,18 +57,13 @@ class RecognitionPipeline:
         events: list[dict] = []
         annotated = frame.copy()
 
-        # Strategy A: InsightFace on the full frame (stable embeddings, best accuracy)
         if embedding_service._app is not None:
-            insightface_results, insightface_events = self._process_with_insightface(
-                db, frame, camera_id, annotated
-            )
-            results.extend(insightface_results)
-            events.extend(insightface_events)
+            r, e = self._process_with_insightface(db, frame, camera_id, annotated)
         else:
-            # Strategy B: Haar detector + embed crop (fallback only)
-            haar_results, haar_events = self._process_with_haar(db, frame, camera_id, annotated)
-            results.extend(haar_results)
-            events.extend(haar_events)
+            r, e = self._process_with_haar(db, frame, camera_id, annotated)
+
+        results.extend(r)
+        events.extend(e)
 
         mark_absent_exits(db, camera_id)
         db.commit()
@@ -75,15 +73,22 @@ class RecognitionPipeline:
         self, db: Session, frame: np.ndarray, camera_id: str, annotated: np.ndarray
     ) -> tuple[list[RecognitionResult], list[dict]]:
         """
-        Use InsightFace to detect faces AND generate embeddings from the full frame.
-        InsightFace aligns each face to 112x112 before embedding, so the embedding
-        is stable across frames regardless of Haar crop quality.
+        InsightFace path — handles full frame detection + embedding.
+        Uses buffalo_l with 512-dim embeddings; robust to tilt and moderate distance.
         """
         results: list[RecognitionResult] = []
         events: list[dict] = []
 
         try:
+            # Try with the frame at its natural resolution first
             faces = embedding_service._app.get(frame)
+
+            # If no faces found, retry with a brightness-normalised copy
+            # Helps when lighting is poor (e.g. indoor low light)
+            if not faces:
+                norm = cv2.normalize(frame, None, 0, 255, cv2.NORM_MINMAX)
+                faces = embedding_service._app.get(norm)
+
         except Exception as exc:  # noqa: BLE001
             LOGGER.warning("InsightFace full-frame analysis failed: %s", exc)
             return results, events
@@ -96,6 +101,11 @@ class RecognitionPipeline:
             x1, y1, x2, y2 = self._clamp_box(
                 (int(bbox[0]), int(bbox[1]), int(bbox[2]), int(bbox[3])), frame
             )
+
+            # Skip tiny detections — usually noise or background faces
+            if (x2 - x1) < MIN_FACE_SIZE or (y2 - y1) < MIN_FACE_SIZE:
+                continue
+
             box = [x1, y1, x2, y2]
             detection_id = f"if-{idx}-{x1}-{y1}"
 
@@ -110,9 +120,11 @@ class RecognitionPipeline:
             if crop.size == 0:
                 continue
 
+            # ── Search the vector index ──────────────────────────────────────
             personnel_id, score = vector_index.search(embedding)
             known = bool(personnel_id and score >= settings.recognition_threshold)
 
+            # ── Grace window (recently registered person) ────────────────────
             if not known:
                 recent_pid = self._find_recently_registered(embedding)
                 if recent_pid is not None:
@@ -129,7 +141,9 @@ class RecognitionPipeline:
                 if event:
                     events.append(event)
 
-            self._draw(annotated, result)
+            # Face tilt angle for debug info
+            tilt_deg = self._estimate_tilt(face) if hasattr(face, "kps") else None
+            self._draw(annotated, result, tilt_deg)
             results.append(result)
 
         return results, events
@@ -137,13 +151,15 @@ class RecognitionPipeline:
     def _process_with_haar(
         self, db: Session, frame: np.ndarray, camera_id: str, annotated: np.ndarray
     ) -> tuple[list[RecognitionResult], list[dict]]:
-        """Fallback: Haar detector + embed the crop."""
+        """Fallback Haar path."""
         results: list[RecognitionResult] = []
         events: list[dict] = []
         detections = face_detector.detect(frame)
 
         for detection in detections:
             x1, y1, x2, y2 = self._clamp_box(detection.box, frame)
+            if (x2 - x1) < MIN_FACE_SIZE or (y2 - y1) < MIN_FACE_SIZE:
+                continue
             crop = frame[y1:y2, x1:x2]
             if crop.size == 0:
                 continue
@@ -180,7 +196,7 @@ class RecognitionPipeline:
     ) -> RecognitionResult:
         person = db.get(Personnel, personnel_id)
         name = person.full_name if person else f"personnel_id={personnel_id}"
-        LOGGER.info("KNOWN PERSON: %s confidence=%.2f", name, score)
+        LOGGER.info("KNOWN: %s score=%.3f", name, score)
         log = mark_seen(db, personnel_id, camera_id, score)
         status_text = log.status if log else "SEEN"
         return RecognitionResult(
@@ -201,7 +217,6 @@ class RecognitionPipeline:
         now = datetime.now(timezone.utc)
         duplicate_id = self._find_duplicate_unknown(embedding, now)
         if duplicate_id is not None:
-            LOGGER.info("UNKNOWN SKIPPED (duplicate): id=%s", duplicate_id)
             return RecognitionResult(
                 detection_id=detection_id,
                 known=False,
@@ -216,7 +231,7 @@ class RecognitionPipeline:
         db.add(unknown)
         db.flush()
         self._remember_unknown(embedding, now, unknown.id)
-        LOGGER.info("NEW UNKNOWN CREATED: id=%s", unknown.id)
+        LOGGER.info("NEW UNKNOWN: id=%s", unknown.id)
         event = {
             "type": "unknown_detected",
             "unknown_id": unknown.id,
@@ -237,11 +252,10 @@ class RecognitionPipeline:
         with self._unknown_lock:
             cooldown = timedelta(seconds=settings.duplicate_window_seconds)
             self._recent_unknowns = [
-                entry for entry in self._recent_unknowns if now - entry.timestamp <= cooldown
+                e for e in self._recent_unknowns if now - e.timestamp <= cooldown
             ]
             for entry in self._recent_unknowns:
-                similarity = float(np.dot(entry.embedding, embedding))
-                if similarity > UNKNOWN_SIMILARITY_THRESHOLD:
+                if float(np.dot(entry.embedding, embedding)) > UNKNOWN_SIMILARITY_THRESHOLD:
                     entry.timestamp = now
                     return entry.unknown_id
         return None
@@ -259,7 +273,7 @@ class RecognitionPipeline:
     def remove_unknown_cache(self, unknown_id: int) -> None:
         with self._unknown_lock:
             self._recent_unknowns = [
-                entry for entry in self._recent_unknowns if entry.unknown_id != unknown_id
+                e for e in self._recent_unknowns if e.unknown_id != unknown_id
             ]
 
     def get_unknown_embedding(self, unknown_id: int) -> np.ndarray | None:
@@ -277,14 +291,14 @@ class RecognitionPipeline:
                     embedding=embedding.copy(), timestamp=now, personnel_id=personnel_id
                 )
             )
-        LOGGER.info("REGISTERED CACHE: personnel_id=%s added to 60s grace window", personnel_id)
+        LOGGER.info("REGISTERED CACHE: personnel_id=%s (60s grace)", personnel_id)
 
     def _find_recently_registered(self, embedding: np.ndarray) -> int | None:
         now = datetime.now(timezone.utc)
         with self._registered_lock:
-            cutoff = timedelta(seconds=60)
             self._recently_registered = [
-                e for e in self._recently_registered if now - e.timestamp <= cutoff
+                e for e in self._recently_registered
+                if now - e.timestamp <= timedelta(seconds=60)
             ]
             for entry in self._recently_registered:
                 if float(np.dot(entry.embedding, embedding)) > GRACE_WINDOW_THRESHOLD:
@@ -298,15 +312,57 @@ class RecognitionPipeline:
         x1, y1, x2, y2 = box
         return max(0, x1), max(0, y1), min(w, x2), min(h, y2)
 
-    def _draw(self, frame: np.ndarray, result: RecognitionResult) -> None:
+    def _estimate_tilt(self, face) -> float | None:
+        """Estimate face tilt angle from facial keypoints (if available)."""
+        try:
+            kps = face.kps  # shape (5, 2): left_eye, right_eye, nose, left_mouth, right_mouth
+            if kps is None or len(kps) < 2:
+                return None
+            left_eye, right_eye = kps[0], kps[1]
+            dy = right_eye[1] - left_eye[1]
+            dx = right_eye[0] - left_eye[0]
+            angle = float(np.degrees(np.arctan2(dy, dx)))
+            return round(angle, 1)
+        except Exception:  # noqa: BLE001
+            return None
+
+    def _draw(self, frame: np.ndarray, result: RecognitionResult, tilt: float | None = None) -> None:
         x1, y1, x2, y2 = result.box
-        color = (0, 180, 0) if result.known else (0, 0, 255)
-        label = f"{result.full_name or 'Unknown'} {result.confidence:.2f}"
+        # Green for known, red for unknown
+        color = (0, 220, 80) if result.known else (0, 60, 220)
+
+        # Draw box
         cv2.rectangle(frame, (x1, y1), (x2, y2), color, 2)
-        cv2.putText(
-            frame, label, (x1, max(20, y1 - 8)),
-            cv2.FONT_HERSHEY_SIMPLEX, 0.6, color, 2
-        )
+
+        # Corner brackets (tactical look)
+        corner_len = max(8, (x2 - x1) // 5)
+        for cx, cy, dx, dy in [
+            (x1, y1, corner_len, corner_len),
+            (x2, y1, -corner_len, corner_len),
+            (x1, y2, corner_len, -corner_len),
+            (x2, y2, -corner_len, -corner_len),
+        ]:
+            cv2.line(frame, (cx, cy), (cx + dx, cy), color, 2)
+            cv2.line(frame, (cx, cy), (cx, cy + dy), color, 2)
+
+        # Label
+        name = result.full_name or f"UNKNOWN #{result.unknown_id or '?'}"
+        conf_pct = int(result.confidence * 100)
+        status = result.status or ""
+        label = f"{name} [{conf_pct}%]"
+        if tilt is not None and abs(tilt) > 5:
+            label += f" ~{tilt}deg"
+
+        # Background for label
+        font = cv2.FONT_HERSHEY_SIMPLEX
+        scale, thick = 0.5, 1
+        (tw, th), _ = cv2.getTextSize(label, font, scale, thick)
+        lx, ly = x1, max(th + 6, y1 - 4)
+        cv2.rectangle(frame, (lx, ly - th - 4), (lx + tw + 6, ly + 2), (0, 0, 0), -1)
+        cv2.putText(frame, label, (lx + 3, ly - 2), font, scale, color, thick)
+
+        # Status tag
+        cv2.putText(frame, status, (x1, y2 + 14), font, 0.42, color, 1)
 
 
 recognition_pipeline = RecognitionPipeline()
