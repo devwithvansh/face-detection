@@ -329,18 +329,20 @@ function App() {
           <Sidebar unknownCount={unknownCount} />
           <Topbar token={token} onLogout={logout} detections={liveDetections} />
           <div className="mainContent">
-            <div className="pageContent">
-              <Routes>
-                <Route path="/"           element={<LiveDashboard token={token} onDetections={setLiveDetections} />} />
-                <Route path="/personnel"  element={<PersonnelPage />} />
-                <Route path="/unknown"    element={<UnknownQueuePage />} />
-                <Route path="/attendance" element={<AttendancePage />} />
-                <Route path="/cameras"    element={<Navigate to="/" replace />} />
-                <Route path="/alerts"     element={<PlaceholderPage title="Alerts" />} />
-                <Route path="/reports"    element={<PlaceholderPage title="Reports" />} />
-                <Route path="/settings"   element={<PlaceholderPage title="Settings" />} />
-              </Routes>
-            </div>
+            <Routes>
+              <Route path="/" element={
+                <div className="pageContentFull">
+                  <LiveDashboard token={token} onDetections={setLiveDetections} />
+                </div>
+              } />
+              <Route path="/personnel"  element={<div className="pageContent"><PersonnelPage /></div>} />
+              <Route path="/unknown"    element={<div className="pageContent"><UnknownQueuePage /></div>} />
+              <Route path="/attendance" element={<div className="pageContent"><AttendancePage /></div>} />
+              <Route path="/cameras"    element={<Navigate to="/" replace />} />
+              <Route path="/alerts"     element={<div className="pageContent"><PlaceholderPage title="Alerts" /></div>} />
+              <Route path="/reports"    element={<div className="pageContent"><PlaceholderPage title="Reports" /></div>} />
+              <Route path="/settings"   element={<div className="pageContent"><PlaceholderPage title="Settings" /></div>} />
+            </Routes>
           </div>
           <UnknownRegistrationDialog
             unknown={activeUnknown}
