@@ -67,6 +67,12 @@ function LoginPage({ onLogin, externalError }) {
   const [creds, setCreds] = useState({ username: 'admin', password: '' });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(t);
+  }, []);
 
   const handleSubmit = async () => {
     setError('');
@@ -85,51 +91,111 @@ function LoginPage({ onLogin, externalError }) {
     }
   };
 
+  const timeStr = time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase();
+  const dateStr = time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+
   return (
-    <div className="loginPageEnhanced">
-      <div className="loginBackdrop"></div>
-      <div className="loginCardEnhanced">
-        <div className="loginLogoEnhanced">
-          <div className="loginShieldEnhanced"><ShieldIcon sx={{ fontSize: 80 }} /></div>
-          <div className="loginTitleEnhanced">ARMY COMMAND</div>
-          <div className="loginSubtitleEnhanced">Surveillance & Access Control</div>
+    <div className="loginPage2">
+      {/* Animated grid lines */}
+      <div className="loginGrid"></div>
+
+      {/* Top system bar */}
+      <div className="loginSysBar">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div style={{ width: 8, height: 8, borderRadius: '50%', background: 'var(--green-bright)', boxShadow: '0 0 10px var(--green-bright)', animation: 'pulse 1.5s infinite' }} />
+          <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--green-bright)', letterSpacing: 3 }}>SYSTEM ONLINE</span>
         </div>
-        <div className="loginClassificationEnhanced">RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY</div>
-        <div className="loginFieldsEnhanced">
-          <div className="loginFieldEnhanced">
-            <label>Operator ID</label>
-            <input
-              type="text"
-              value={creds.username}
-              onChange={(e) => setCreds({ ...creds, username: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              autoComplete="username"
-              placeholder="Enter your operator ID"
-            />
-          </div>
-          <div className="loginFieldEnhanced">
-            <label>Passphrase</label>
-            <input
-              type="password"
-              placeholder="••••••••"
-              value={creds.password}
-              onChange={(e) => setCreds({ ...creds, password: e.target.value })}
-              onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
-              autoComplete="current-password"
-            />
-          </div>
-          {(externalError || error) && (
-            <div className="loginErrorEnhanced">
-              ⚠ {externalError || error}
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: 2 }}>{timeStr} · {dateStr}</span>
+        <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: 3 }}>ENCRYPTION: AES-256</span>
+      </div>
+
+      {/* Main card */}
+      <div className="loginCard2">
+        {/* Left panel — branding */}
+        <div className="loginLeft">
+          <div className="loginLeftInner">
+            <div className="loginShieldLarge">
+              <ShieldIcon sx={{ fontSize: 100, color: 'var(--green-bright)', filter: 'drop-shadow(0 0 30px rgba(105,240,117,0.4))' }} />
             </div>
-          )}
-          <Button className="loginBtnEnhanced" onClick={handleSubmit} disabled={loading} fullWidth>
-            {loading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
-          </Button>
+            <div className="loginBrandTitle">ARMY<br/>COMMAND</div>
+            <div className="loginBrandSub">ADVANCED SURVEILLANCE<br/>& ACCESS CONTROL</div>
+            <div className="loginDivider" />
+            <div className="loginCredentials">
+              <div className="loginCredRow">
+                <span className="loginCredLabel">CLEARANCE</span>
+                <span className="loginCredVal" style={{ color: 'var(--amber)' }}>TOP SECRET</span>
+              </div>
+              <div className="loginCredRow">
+                <span className="loginCredLabel">SYSTEM</span>
+                <span className="loginCredVal">BIOMETRIC GATE</span>
+              </div>
+              <div className="loginCredRow">
+                <span className="loginCredLabel">VERSION</span>
+                <span className="loginCredVal">v4.2.1</span>
+              </div>
+            </div>
+          </div>
         </div>
-        <div className="loginFooterEnhanced">
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>SECURE MILITARY SYSTEM</div>
-          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2, marginTop: 4 }}>© COMMAND CENTER</div>
+
+        {/* Right panel — form */}
+        <div className="loginRight">
+          <div className="loginAlertBanner">
+            <span style={{ color: 'var(--red-bright)', marginRight: 10, fontSize: 14 }}>⬛</span>
+            RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY
+          </div>
+
+          <div className="loginFormHeader">
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: 40, fontWeight: 900, letterSpacing: 3, color: 'var(--text)', lineHeight: 1 }}>AUTHENTICATE</div>
+            <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', letterSpacing: 3, marginTop: 8 }}>ENTER CREDENTIALS TO PROCEED</div>
+          </div>
+
+          <div className="loginFields2">
+            <div className="loginField2">
+              <label>OPERATOR ID</label>
+              <input
+                type="text"
+                value={creds.username}
+                onChange={(e) => setCreds({ ...creds, username: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                autoComplete="username"
+                placeholder="Enter operator ID"
+              />
+            </div>
+            <div className="loginField2">
+              <label>PASSPHRASE</label>
+              <input
+                type="password"
+                placeholder="••••••••••••"
+                value={creds.password}
+                onChange={(e) => setCreds({ ...creds, password: e.target.value })}
+                onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
+                autoComplete="current-password"
+              />
+            </div>
+
+            {(externalError || error) && (
+              <div className="loginError2">
+                ⚠ {externalError || error}
+              </div>
+            )}
+
+            <button
+              className={`loginBtn2 ${loading ? 'loading' : ''}`}
+              onClick={handleSubmit}
+              disabled={loading}
+            >
+              {loading ? (
+                <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 12 }}>
+                  <span className="loginSpinner" /> AUTHENTICATING...
+                </span>
+              ) : 'AUTHENTICATE'}
+            </button>
+          </div>
+
+          <div className="loginFooter2">
+            <span>SECURE MILITARY SYSTEM</span>
+            <span>© COMMAND CENTER</span>
+          </div>
         </div>
       </div>
     </div>
@@ -198,11 +264,8 @@ function Topbar({ onLogout }) {
 
       <div className="topbarOperator" onClick={onLogout} title="Click to logout">
         <div className="topbarOperatorAvatar">🪖</div>
-        <div className="topbarOperatorInfo">
-          <div className="topbarOperatorName">Operator</div>
-          <div className="topbarOperatorUnit">Control Room 01</div>
-        </div>
-        <LogoutIcon style={{ fontSize: 20, color: 'var(--text-muted)', marginLeft: 15 }} />
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: 'var(--text)', textTransform: 'uppercase' }}>ADMIN</div>
+        <LogoutIcon style={{ fontSize: 20, color: 'var(--text-muted)', marginLeft: 8 }} />
       </div>
     </div>
   );
@@ -219,11 +282,20 @@ function App() {
   const [activeUnknown, setActiveUnknown]   = useState(null);
   const [unknownQueue, setUnknownQueue]     = useState([]);
   const [liveDetections, setLiveDetections] = useState([]);
+  const [saveUnknownToQueue, setSaveUnknownToQueue] = useState(() => {
+    const stored = localStorage.getItem('saveUnknownToQueue');
+    return stored === null ? true : stored === 'true';
+  });
   const openedIds   = useRef(new Set());
   const queueRef    = useRef([]);
 
   useEffect(() => { queueRef.current = unknownQueue; }, [unknownQueue]);
   useEffect(() => { setAuthToken(token); }, [token]);
+  const saveUnknownRef = useRef(saveUnknownToQueue);
+  useEffect(() => {
+    saveUnknownRef.current = saveUnknownToQueue;
+    localStorage.setItem('saveUnknownToQueue', saveUnknownToQueue);
+  }, [saveUnknownToQueue]);
 
   useEffect(() => {
     setUnauthorizedHandler(() => {
@@ -248,6 +320,7 @@ function App() {
             setLiveDetections(p.detections || []);
           }
           if (p.type === 'unknown_detected') {
+            if (!saveUnknownRef.current) return;
             if (openedIds.current.has(p.unknown_id)) return;
             const pt = p.timestamp ? new Date(p.timestamp).getTime() : 0;
             const dup = queueRef.current.some((q) => {
@@ -311,7 +384,7 @@ function App() {
               <Routes>
                 <Route path="/" element={
                   <div className="pageContentFull">
-                    <LiveDashboard token={token} onDetections={setLiveDetections} />
+                    <LiveDashboard token={token} onDetections={setLiveDetections} saveUnknownToQueue={saveUnknownToQueue} onToggleSaveUnknown={setSaveUnknownToQueue} />
                   </div>
                 } />
                 <Route path="/personnel"  element={<PersonnelPage />} />

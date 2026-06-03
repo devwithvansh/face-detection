@@ -1,9 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import PlayArrowIcon from '@mui/icons-material/PlayArrow';
-import StopIcon from '@mui/icons-material/Stop';
 import { api, buildWsUrl, storageUrl } from '../services/api.js';
 
-export default function LiveDashboard({ token, onDetections }) {
+// Helper: parse UTC timestamp correctly (backend sends without Z)
+function parseUTC(ts) {
+  if (!ts) return null;
+  // If already has timezone info, use as-is; otherwise append Z for UTC
+  return new Date(ts.includes('+') || ts.endsWith('Z') ? ts : ts + 'Z');
+}
+
+export default function LiveDashboard({ token, onDetections, saveUnknownToQueue, onToggleSaveUnknown }) {
   const [frame, setFrame]               = useState('');
   const [detections, setDetections]     = useState([]);
   const [cameraId, setCameraId]         = useState('GATE1');
@@ -42,8 +47,8 @@ export default function LiveDashboard({ token, onDetections }) {
       setAttendanceStats({ total, entries, exits, inside: Math.max(0, entries - exits) });
 
       const sorted = [...data].sort((a, b) => {
-        const ta = new Date(a.entry_time || a.timestamp || 0).getTime();
-        const tb = new Date(b.entry_time || b.timestamp || 0).getTime();
+        const ta = (parseUTC(a.entry_time || a.timestamp) || new Date(0)).getTime();
+        const tb = (parseUTC(b.entry_time || b.timestamp) || new Date(0)).getTime();
         return tb - ta;
       });
       setRecentEvents(sorted.slice(0, 8).map((r) => ({
@@ -134,27 +139,19 @@ export default function LiveDashboard({ token, onDetections }) {
     }).slice(0, 8);
   }, [detections, recentEvents]);
 
+  const fmtEventTime = (ts) => {
+    const d = parseUTC(ts);
+    if (!d) return '';
+    return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  };
+
   return (
     <div className="liveDashboard">
-      {/* Header Row */}
+      {/* Header Row — no stat boxes */}
       <div className="feedHeader">
         <div className="feedTitleArea">
           <div className="feedTitle">LIVE FEED</div>
           <div style={{ fontFamily: 'var(--font-mono)', color: 'var(--green-bright)', fontSize: 18, letterSpacing: 4 }}>SIGNAL: {cameraId.toUpperCase()}</div>
-        </div>
-        <div className="topStats">
-          <div className="statBox">
-            <div className="statBoxLabel">Authorized</div>
-            <div className="statBoxValue" style={{ color: 'var(--green-bright)' }}>{detections.filter(d => d.known).length}</div>
-          </div>
-          <div className="statBox">
-            <div className="statBoxLabel">Unidentified</div>
-            <div className="statBoxValue" style={{ color: 'var(--red-bright)' }}>{detections.filter(d => !d.known).length}</div>
-          </div>
-          <div className="statBox">
-            <div className="statBoxLabel">Total Hits</div>
-            <div className="statBoxValue">{detections.length}</div>
-          </div>
         </div>
       </div>
 
@@ -177,7 +174,7 @@ export default function LiveDashboard({ token, onDetections }) {
           </div>
         </div>
 
-        {/* Identity Card — only shown when there is an active detection */}
+        {/* Identity Card */}
         {primary && (
           <div className="identityCard">
             <div className="identityAvatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary.known ? 'var(--green-dim)' : 'var(--red-dim)', fontSize: 40, color: primary.known ? 'var(--green-bright)' : 'var(--red-bright)' }}>★</div>
@@ -208,7 +205,7 @@ export default function LiveDashboard({ token, onDetections }) {
         )}
       </div>
 
-      {/* Right Sidebar Area */}
+      {/* Right Sidebar */}
       <div className="liveRight">
         {/* Camera Controls */}
         <div className="panel">
@@ -216,37 +213,69 @@ export default function LiveDashboard({ token, onDetections }) {
             <div className="panelTitle">Tactical Controls</div>
           </div>
           <div className="panelBody">
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Active Feed</label>
-                <select 
+                <select
                   style={{ background: 'var(--bg)', border: '1px solid var(--border2)', color: 'var(--text)', padding: 12, fontFamily: 'var(--font-mono)', outline: 'none', fontSize: 14 }}
-                  value={camForm.camera_id} 
+                  value={camForm.camera_id}
                   onChange={e => setCamForm({...camForm, camera_id: e.target.value})}
                 >
                   <option value="GATE1">GATE1 - MAIN ENTRANCE</option>
                   {activeCameras.map(id => <option key={id} value={id}>{id}</option>)}
                 </select>
               </div>
-              <div style={{ display: 'flex', gap: 15 }}>
-                <button 
-                  style={{ flex: 1, height: 54, background: 'var(--green)', color: '#000', border: 'none', fontWeight: 900, fontFamily: 'var(--font-display)', cursor: 'pointer', fontSize: 20, letterSpacing: 2 }}
+              <div style={{ display: 'flex', gap: 12 }}>
+                <button
+                  style={{ flex: 1, height: 50, background: 'var(--green)', color: '#000', border: 'none', fontWeight: 900, fontFamily: 'var(--font-display)', cursor: 'pointer', fontSize: 18, letterSpacing: 2 }}
                   onClick={startCamera}
                 >
                   ENGAGE
                 </button>
-                <button 
-                  style={{ flex: 1, height: 54, background: 'var(--red)', color: '#fff', border: 'none', fontWeight: 900, fontFamily: 'var(--font-display)', cursor: 'pointer', fontSize: 20, letterSpacing: 2 }}
+                <button
+                  style={{ flex: 1, height: 50, background: 'var(--red)', color: '#fff', border: 'none', fontWeight: 900, fontFamily: 'var(--font-display)', cursor: 'pointer', fontSize: 18, letterSpacing: 2 }}
                   onClick={() => stopCamera()}
                 >
                   ABORT
                 </button>
               </div>
+
+              {/* Save Unknown Toggle */}
+              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>
+                <label style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', display: 'block', marginBottom: 10 }}>Unknown Queue</label>
+                <button
+                  onClick={() => onToggleSaveUnknown && onToggleSaveUnknown(!saveUnknownToQueue)}
+                  style={{
+                    width: '100%',
+                    height: 44,
+                    background: saveUnknownToQueue ? 'rgba(76,175,80,0.15)' : 'rgba(229,57,53,0.1)',
+                    border: `1px solid ${saveUnknownToQueue ? 'var(--green)' : 'var(--red)'}`,
+                    color: saveUnknownToQueue ? 'var(--green-bright)' : 'var(--red-bright)',
+                    fontFamily: 'var(--font-display)',
+                    fontWeight: 800,
+                    fontSize: 14,
+                    letterSpacing: 2,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 10,
+                  }}
+                >
+                  <span style={{ fontSize: 16 }}>{saveUnknownToQueue ? '●' : '○'}</span>
+                  {saveUnknownToQueue ? 'SAVING TO QUEUE' : 'NOT SAVING'}
+                </button>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 6, lineHeight: 1.4 }}>
+                  {saveUnknownToQueue
+                    ? 'Unknown faces are being saved for review'
+                    : 'Unknown detections are ignored — not stored'}
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Recent Events */}
+        {/* Mission Log */}
         <div className="panel" style={{ flex: 1 }}>
           <div className="panelHeader">
             <div className="panelTitle">Mission Log</div>
@@ -260,7 +289,7 @@ export default function LiveDashboard({ token, onDetections }) {
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: evt.known ? 'var(--text)' : 'var(--red-bright)', textTransform: 'uppercase' }}>{evt.name}</div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>{evt.army_id} • {evt.status}</div>
                   </div>
-                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>{new Date(evt.time).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</div>
+                  <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)' }}>{fmtEventTime(evt.time)}</div>
                 </div>
               ))}
             </div>

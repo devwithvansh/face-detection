@@ -572,3 +572,294 @@ body::after {
 .MuiInputBase-input { color: var(--text) !important; font-family: var(--font-mono) !important; }
 .MuiButton-contained { border-radius: 0 !important; font-family: var(--font-display) !important; font-weight: 800 !important; text-transform: uppercase !important; }
 .MuiButton-outlined { border-radius: 0 !important; font-family: var(--font-display) !important; font-weight: 700 !important; text-transform: uppercase !important; }
+/* ================================================================
+   LOGIN PAGE v2 — FULL TACTICAL SPLIT-PANEL DESIGN
+   ================================================================ */
+
+@keyframes gridMove {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(40px); }
+}
+@keyframes loginFadeIn {
+  from { opacity: 0; transform: translateY(20px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.loginPage2 {
+  height: 100vh;
+  width: 100vw;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+  overflow: hidden;
+}
+
+.loginGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--border) 1px, transparent 1px),
+    linear-gradient(90deg, var(--border) 1px, transparent 1px);
+  background-size: 40px 40px;
+  opacity: 0.4;
+  animation: gridMove 4s linear infinite;
+  pointer-events: none;
+}
+
+.loginSysBar {
+  position: relative;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 40px;
+  background: var(--bg2);
+  border-bottom: 1px solid var(--border);
+}
+
+.loginCard2 {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 40px;
+  position: relative;
+  z-index: 10;
+  animation: loginFadeIn 0.5s ease-out;
+}
+
+.loginCard2 > div {
+  display: flex;
+  width: 100%;
+  max-width: 900px;
+  min-height: 560px;
+  border: 1px solid var(--border2);
+  box-shadow: 0 0 80px rgba(0,0,0,0.9), 0 0 40px var(--green-glow);
+  overflow: hidden;
+}
+
+/* Left branding panel */
+.loginLeft {
+  width: 360px;
+  flex-shrink: 0;
+  background: linear-gradient(160deg, #0a120a 0%, #060c06 50%, #0d1a0d 100%);
+  border-right: 1px solid var(--border2);
+  position: relative;
+  overflow: hidden;
+}
+
+.loginLeft::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(ellipse at 50% 30%, rgba(76,175,80,0.12) 0%, transparent 60%),
+    repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 38px,
+      rgba(105,240,117,0.03) 38px,
+      rgba(105,240,117,0.03) 40px
+    );
+  pointer-events: none;
+}
+
+.loginLeftInner {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  padding: 50px 40px;
+  text-align: center;
+}
+
+.loginShieldLarge {
+  margin-bottom: 24px;
+}
+
+.loginBrandTitle {
+  font-family: var(--font-display);
+  font-size: 56px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  color: var(--text);
+  line-height: 1.0;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+.loginBrandSub {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  line-height: 1.8;
+}
+
+.loginDivider {
+  width: 60px;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--green), transparent);
+  margin: 28px auto;
+}
+
+.loginCredentials {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.loginCredRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 14px;
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--border);
+}
+
+.loginCredLabel {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+}
+
+.loginCredVal {
+  font-family: var(--font-display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--green-bright);
+  letter-spacing: 1px;
+}
+
+/* Right form panel */
+.loginRight {
+  flex: 1;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  padding: 0;
+}
+
+.loginAlertBanner {
+  background: var(--red-dim);
+  border-bottom: 1px solid var(--red);
+  color: var(--red-bright);
+  padding: 12px 40px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  display: flex;
+  align-items: center;
+}
+
+.loginFormHeader {
+  padding: 40px 40px 30px;
+  border-bottom: 1px solid var(--border);
+}
+
+.loginFields2 {
+  flex: 1;
+  padding: 32px 40px 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.loginField2 label {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.loginField2 input {
+  width: 100%;
+  background: var(--bg);
+  border: 1px solid var(--border2);
+  border-bottom: 2px solid var(--border2);
+  padding: 16px 20px;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 18px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  letter-spacing: 1px;
+}
+
+.loginField2 input:focus {
+  border-color: var(--green);
+  border-bottom-color: var(--green-bright);
+  box-shadow: 0 0 0 1px var(--green-dim), 0 4px 20px var(--green-glow);
+}
+
+.loginBtn2 {
+  height: 60px;
+  background: var(--green);
+  color: #000;
+  border: none;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 6px;
+  cursor: pointer;
+  width: 100%;
+  transition: background 0.2s, box-shadow 0.2s;
+  margin-top: 8px;
+}
+
+.loginBtn2:hover:not(:disabled) {
+  background: var(--green-bright);
+  box-shadow: 0 0 30px var(--green-glow);
+}
+
+.loginBtn2:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.loginError2 {
+  background: var(--red-dim);
+  border: 1px solid var(--red);
+  color: var(--red-bright);
+  padding: 14px 20px;
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 1px;
+}
+
+.loginSpinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(0,0,0,0.3);
+  border-top-color: #000;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+.loginFooter2 {
+  padding: 16px 40px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--text-muted);
+  letter-spacing: 2px;
+  text-transform: uppercase;
+}

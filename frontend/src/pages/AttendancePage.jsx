@@ -61,14 +61,16 @@ export default function AttendancePage() {
     }
   };
 
-  const fmtTime = (ts) =>
-    ts
-      ? new Date(ts).toLocaleString('en-GB', {
-          day: '2-digit', month: 'short', year: 'numeric',
-          hour: '2-digit', minute: '2-digit', second: '2-digit',
-          hour12: true
-        }).toUpperCase()
-      : '—';
+  const fmtTime = (ts) => {
+    if (!ts) return '—';
+    // Backend returns UTC timestamps without Z — append it so browser parses correctly
+    const normalized = ts.includes('+') || ts.endsWith('Z') ? ts : ts + 'Z';
+    return new Date(normalized).toLocaleString('en-GB', {
+      day: '2-digit', month: 'short', year: 'numeric',
+      hour: '2-digit', minute: '2-digit', second: '2-digit',
+      hour12: true
+    }).toUpperCase();
+  };
 
   // Group logs by person
   const groupedByPerson = {};
@@ -87,9 +89,8 @@ export default function AttendancePage() {
   });
 
   const personGroups = Object.values(groupedByPerson).sort((a, b) => {
-    const latestA = a.logs[0]?.timestamp || 0;
-    const latestB = b.logs[0]?.timestamp || 0;
-    return new Date(latestB).getTime() - new Date(latestA).getTime();
+    const toMs = (ts) => { if (!ts) return 0; const n = ts.includes('+') || ts.endsWith('Z') ? ts : ts + 'Z'; return new Date(n).getTime(); };
+    return toMs(b.logs[0]?.timestamp) - toMs(a.logs[0]?.timestamp);
   });
 
   const entryCount = rows.filter((r) => r.status === 'ENTRY').length;
