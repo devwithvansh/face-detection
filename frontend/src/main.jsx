@@ -7,9 +7,6 @@ import BadgeIcon from '@mui/icons-material/Badge';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import HistoryIcon from '@mui/icons-material/History';
 import ShieldIcon from '@mui/icons-material/Shield';
-import WarningAmberIcon from '@mui/icons-material/WarningAmber';
-import AssessmentIcon from '@mui/icons-material/Assessment';
-import SettingsIcon from '@mui/icons-material/Settings';
 import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { api, setAuthToken, setUnauthorizedHandler, buildWsUrl, isTokenExpired } from './services/api.js';
@@ -26,13 +23,13 @@ const armyTheme = createTheme({
     primary:    { main: '#4caf50' },
     secondary:  { main: '#ffb300' },
     error:      { main: '#e53935' },
-    background: { default: '#0f1410', paper: '#1e2820' },
-    text:       { primary: '#d4ddd5', secondary: '#6b7d6c' },
+    background: { default: '#0a0e0a', paper: '#182019' },
+    text:       { primary: '#e0e8e1', secondary: '#8a9e8b' },
   },
-  shape: { borderRadius: 3 },
+  shape: { borderRadius: 4 },
   typography: { fontFamily: "'Barlow', sans-serif" },
   components: {
-    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#0f1410' } } },
+    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#0a0e0a' } } },
   },
 });
 
@@ -43,21 +40,22 @@ function LiveClock() {
     const t = setInterval(() => setTime(new Date()), 1000);
     return () => clearInterval(t);
   }, []);
+  
   return (
-    <>
-      <div className="topbarMeta" style={{ alignItems: 'center' }}>
-        <div className="topbarMetaLabel">Time</div>
-        <div className="topbarMetaValue" style={{ fontSize: 16, fontFamily: "'JetBrains Mono', monospace" }}>
+    <div className="topbarInfoGroup">
+      <div className="topbarInfoItem">
+        <div className="topbarInfoLabel">Time</div>
+        <div className="topbarInfoValue" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
           {time.toUTCString().slice(17, 25)} UTC
         </div>
       </div>
-      <div className="topbarMeta" style={{ alignItems: 'center' }}>
-        <div className="topbarMetaLabel">Date</div>
-        <div className="topbarMetaValue" style={{ fontSize: 14 }}>
+      <div className="topbarInfoItem">
+        <div className="topbarInfoLabel">Date</div>
+        <div className="topbarInfoValue">
           {time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
         </div>
       </div>
-    </>
+    </div>
   );
 }
 
@@ -129,27 +127,19 @@ function LoginPage({ onLogin, externalError }) {
 
 /* ── Sidebar ── */
 function Sidebar({ unknownCount }) {
-  const location = useLocation();
-
   const nav = [
-    { to: '/',          label: 'Live Surveillance', icon: <DashboardIcon fontSize="small" /> },
-    { to: '/cameras',   label: 'Cameras',           icon: <CameraAltIcon fontSize="small" /> },
-    { to: '/personnel', label: 'Personnel',          icon: <BadgeIcon fontSize="small" /> },
-    { to: '/unknown',   label: 'Unknown Queue',      icon: <PersonSearchIcon fontSize="small" />, badge: unknownCount },
-    { to: '/attendance',label: 'Access Logs',        icon: <HistoryIcon fontSize="small" /> },
-    { to: '/alerts',    label: 'Alerts',             icon: <WarningAmberIcon fontSize="small" />, badge: 3 },
-    { to: '/reports',   label: 'Reports',            icon: <AssessmentIcon fontSize="small" /> },
-    { to: '/settings',  label: 'Settings',           icon: <SettingsIcon fontSize="small" /> },
+    { to: '/',          label: 'Live Surveillance', icon: <DashboardIcon /> },
+    { to: '/cameras',   label: 'Cameras',           icon: <CameraAltIcon /> },
+    { to: '/personnel', label: 'Personnel',          icon: <BadgeIcon /> },
+    { to: '/unknown',   label: 'Unknown Queue',      icon: <PersonSearchIcon />, badge: unknownCount },
+    { to: '/attendance',label: 'Access Logs',        icon: <HistoryIcon /> },
   ];
 
   return (
     <div className="sidebar">
       <div className="sidebarLogo">
-        <div className="sidebarLogoIcon">🎖️</div>
-        <div className="sidebarLogoText">
-          <div className="sidebarLogoTitle">Army<br />Surveillance</div>
-          <div className="sidebarLogoSub">System v2.0</div>
-        </div>
+        <img src="/logo.png" alt="Army Logo" className="sidebarLogoImg" onError={(e) => e.target.style.display='none'} />
+        {!document.querySelector('.sidebarLogoImg') && <div style={{ fontSize: 40 }}>🎖️</div>}
       </div>
 
       <nav className="sidebarNav">
@@ -168,7 +158,7 @@ function Sidebar({ unknownCount }) {
       </nav>
 
       <div className="sidebarMotto">
-        <div className="sidebarMottoText">Service Before Self</div>
+        <div className="sidebarMottoText">SERVICE BEFORE SELF</div>
         <div className="sidebarMottoCap">Duty • Honor • Country</div>
       </div>
     </div>
@@ -177,9 +167,6 @@ function Sidebar({ unknownCount }) {
 
 /* ── Topbar ── */
 function Topbar({ token, onLogout, detections }) {
-  const known   = detections.filter((d) => d.known).length;
-  const unknown = detections.filter((d) => !d.known).length;
-
   return (
     <div className="topbar">
       <div className="topbarTitle">
@@ -187,44 +174,25 @@ function Topbar({ token, onLogout, detections }) {
         <div className="topbarTitleSub">Face Recognition &amp; Access Control</div>
       </div>
 
-      {/* Stats */}
-      <div className="topbarStats">
-        <div className="topbarStat known">
-          <div className="topbarStatLabel">Known</div>
-          <div className="topbarStatValue">{known}</div>
-          <div className="topbarStatIcon">👤</div>
-        </div>
-        <div className="topbarStat unknown">
-          <div className="topbarStatLabel">Unknown</div>
-          <div className="topbarStatValue">{unknown}</div>
-          <div className="topbarStatIcon" style={{ color: 'var(--red)' }}>❓</div>
-        </div>
-        <div className="topbarStat detections">
-          <div className="topbarStatLabel">Detections</div>
-          <div className="topbarStatValue">{detections.length}</div>
-          <div className="topbarStatIcon">🎯</div>
-        </div>
-      </div>
-
-      {/* System status */}
-      <div className="topbarStatus" style={{ flexDirection: 'column', alignItems: 'flex-start' }}>
-        <div className="topbarMetaLabel">System Status</div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
-          <div className="topbarStatusDot" />
-          <div className="topbarStatusText" style={{ fontSize: 12 }}>Operational</div>
+      <div className="topbarInfoGroup">
+        <div className="topbarInfoItem">
+          <div className="topbarInfoLabel">System Status</div>
+          <div className="topbarStatus">
+            <div className="topbarStatusDot" />
+            <div className="topbarOperatorName" style={{ color: 'var(--green-bright)', fontSize: 14 }}>Operational</div>
+          </div>
         </div>
       </div>
 
       <LiveClock />
 
-      {/* Operator */}
       <div className="topbarOperator" onClick={onLogout} title="Click to logout">
         <div className="topbarOperatorAvatar">🪖</div>
         <div className="topbarOperatorInfo">
-          <div className="topbarOperatorRole">Operator</div>
+          <div className="topbarOperatorName">Operator</div>
           <div className="topbarOperatorUnit">Control Room 01</div>
         </div>
-        <LogoutIcon style={{ fontSize: 14, color: 'var(--text-muted)', marginLeft: 4 }} />
+        <LogoutIcon style={{ fontSize: 18, color: 'var(--text-muted)', marginLeft: 10 }} />
       </div>
     </div>
   );
@@ -327,22 +295,21 @@ function App() {
       <BrowserRouter>
         <div className="appShell">
           <Sidebar unknownCount={unknownCount} />
-          <Topbar token={token} onLogout={logout} detections={liveDetections} />
-          <div className="mainContent">
-            <Routes>
-              <Route path="/" element={
-                <div className="pageContentFull">
-                  <LiveDashboard token={token} onDetections={setLiveDetections} />
-                </div>
-              } />
-              <Route path="/personnel"  element={<div className="pageContent"><PersonnelPage /></div>} />
-              <Route path="/unknown"    element={<div className="pageContent"><UnknownQueuePage /></div>} />
-              <Route path="/attendance" element={<div className="pageContent"><AttendancePage /></div>} />
-              <Route path="/cameras"    element={<Navigate to="/" replace />} />
-              <Route path="/alerts"     element={<div className="pageContent"><PlaceholderPage title="Alerts" /></div>} />
-              <Route path="/reports"    element={<div className="pageContent"><PlaceholderPage title="Reports" /></div>} />
-              <Route path="/settings"   element={<div className="pageContent"><PlaceholderPage title="Settings" /></div>} />
-            </Routes>
+          <div className="mainWrapper">
+            <Topbar token={token} onLogout={logout} detections={liveDetections} />
+            <div className="mainContent">
+              <Routes>
+                <Route path="/" element={
+                  <div className="pageContentFull">
+                    <LiveDashboard token={token} onDetections={setLiveDetections} />
+                  </div>
+                } />
+                <Route path="/personnel"  element={<div className="pageContent"><PersonnelPage /></div>} />
+                <Route path="/unknown"    element={<div className="pageContent"><UnknownQueuePage /></div>} />
+                <Route path="/attendance" element={<div className="pageContent"><AttendancePage /></div>} />
+                <Route path="/cameras"    element={<Navigate to="/" replace />} />
+              </Routes>
+            </div>
           </div>
           <UnknownRegistrationDialog
             unknown={activeUnknown}
@@ -354,15 +321,6 @@ function App() {
         </div>
       </BrowserRouter>
     </ThemeProvider>
-  );
-}
-
-function PlaceholderPage({ title }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh', flexDirection: 'column', gap: 12 }}>
-      <div style={{ fontFamily: "'Barlow Condensed', sans-serif", fontSize: 32, fontWeight: 800, letterSpacing: 2, color: 'var(--text-muted)', textTransform: 'uppercase' }}>{title}</div>
-      <div style={{ fontFamily: "'JetBrains Mono', monospace", fontSize: 11, color: 'var(--text-muted)', letterSpacing: 2 }}>// MODULE UNDER CONSTRUCTION</div>
-    </div>
   );
 }
 
