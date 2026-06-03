@@ -63,7 +63,7 @@ export default function UnknownQueuePage() {
       await api.post('/unknown/register', body);
       closeReg();
       await load();
-      setMessage('Personnel registered and added to the biometric index.');
+      setMessage('Personnel registered successfully.');
       setMsgType('success');
     } catch (err) {
       setRegError(err.response?.data?.detail || 'Registration failed.');
@@ -73,24 +73,24 @@ export default function UnknownQueuePage() {
   };
 
   const clearQueue = async () => {
-    if (!window.confirm('Clear all unreviewed unknown records? This cannot be undone.')) return;
+    if (!window.confirm('Clear all unidentified subject records?')) return;
     try {
-      const { data } = await api.delete('/unknown/clear');
+      await api.delete('/unknown/clear');
       setRows([]);
-      setMessage(`Cleared ${data.cleared} pending record${data.cleared !== 1 ? 's' : ''}.`);
+      setMessage('Queue cleared.');
       setMsgType('info');
     } catch (err) {
-      setMessage(err.response?.data?.detail || 'Unable to clear queue.');
+      setMessage('Unable to clear queue.');
       setMsgType('error');
     }
   };
 
-  const fmtTime = (ts) => ts ? new Date(ts).toLocaleString('en-IN', {
-    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit',
-  }) : '—';
+  const fmtTime = (ts) => ts ? new Date(ts).toLocaleString('en-GB', {
+    day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit', hour12: true
+  }).toUpperCase() : '—';
 
   const fields = [
-    { key: 'army_id',   label: 'Army ID' },
+    { key: 'army_id',   label: 'Service ID' },
     { key: 'full_name', label: 'Full Name' },
     { key: 'rank',      label: 'Rank' },
     { key: 'battalion', label: 'Battalion' },
@@ -98,52 +98,56 @@ export default function UnknownQueuePage() {
   ];
 
   return (
-    <Stack spacing={2}>
-      {/* Header */}
+    <div className="mainContent">
       <div className="pageHeader">
         <div>
           <Typography className="pageTitle">Unknown Queue</Typography>
-          <div className="pageSub">UNIDENTIFIED SUBJECTS — {rows.length} PENDING</div>
+          <div className="pageSub">UNIDENTIFIED BIOMETRIC CAPTURES — {rows.length} PENDING REVIEW</div>
         </div>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={load}>Refresh</Button>
+        <Stack direction="row" spacing={2}>
+          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={load} sx={{ height: 50, px: 3 }}>REFRESH</Button>
           {rows.length > 0 && (
-            <Button color="error" variant="outlined" startIcon={<DeleteSweepIcon />} onClick={clearQueue}>
-              Clear Queue
+            <Button color="error" variant="contained" startIcon={<DeleteSweepIcon />} onClick={clearQueue} sx={{ height: 50, px: 3 }}>
+              PURGE QUEUE
             </Button>
           )}
         </Stack>
       </div>
 
-      {message && <Alert severity={msgType} onClose={() => setMessage('')}>{message}</Alert>}
+      {message && <Alert severity={msgType} sx={{ mb: 4, borderRadius: 0 }}>{message}</Alert>}
 
       {rows.length === 0 ? (
-        <div className="panel">
-          <div className="emptyState" style={{ padding: 60 }}>
-            <div style={{ fontSize: 32, marginBottom: 12, opacity: 0.3 }}>◎</div>
-            No unidentified subjects in queue
+        <div className="panel" style={{ padding: 100, textAlign: 'center' }}>
+          <div style={{ fontSize: 80, marginBottom: 30, opacity: 0.1 }}>🛡️</div>
+          <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, letterSpacing: 8, color: 'var(--text-muted)' }}>
+            SECTOR SECURE — NO PENDING ALERTS
           </div>
         </div>
       ) : (
-        <div className="queueGrid">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: 30 }}>
           {rows.map((row) => (
-            <div className="unknownCard" key={row.id}>
-              <img
-                src={storageUrl(row.image_path)}
-                alt={`Unknown subject #${row.id}`}
-                onError={(e) => { e.target.style.background = '#111'; e.target.src = ''; }}
-              />
-              <div className="unknownCardBody">
-                <div className="unknownCardId">⚠ UNKNOWN #{row.id}</div>
-                <div className="unknownCardTime">{fmtTime(row.detected_time)}</div>
+            <div key={row.id} style={{ background: 'var(--surface)', border: '1px solid var(--red-dim)', overflow: 'hidden', transition: 'transform 0.2s' }}>
+              <div style={{ position: 'relative', height: 250, background: '#000' }}>
+                <img
+                  src={storageUrl(row.image_path)}
+                  alt="Unknown"
+                  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                />
+                <div style={{ position: 'absolute', top: 0, left: 0, background: 'var(--red)', color: '#fff', padding: '6px 15px', fontFamily: 'var(--font-display)', fontWeight: 900, letterSpacing: 2 }}>
+                  ALERT #{row.id}
+                </div>
+              </div>
+              <div style={{ padding: 25 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginBottom: 5 }}>DETECTED AT:</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 20, fontWeight: 800, color: 'var(--text)', marginBottom: 20 }}>{fmtTime(row.detected_time)}</div>
                 <Button
                   variant="contained"
-                  size="small"
+                  fullWidth
                   startIcon={<HowToRegIcon />}
                   onClick={() => openReg(row)}
-                  fullWidth
+                  sx={{ height: 50, background: 'var(--green)', color: '#000' }}
                 >
-                  Register
+                  RESOLVE IDENTITY
                 </Button>
               </div>
             </div>
@@ -151,32 +155,30 @@ export default function UnknownQueuePage() {
         </div>
       )}
 
-      {/* Registration dialog */}
       <Dialog open={Boolean(selected)} onClose={closeReg} fullWidth maxWidth="sm">
-        <DialogTitle>
-          Register Unknown #{selected?.id}
-        </DialogTitle>
+        <DialogTitle sx={{ color: 'var(--amber) !important' }}>Identity Resolution — #{selected?.id}</DialogTitle>
         <DialogContent className="dialogForm">
           {selected?.image_path && (
             <img
               className="registrationPreview"
               src={storageUrl(selected.image_path)}
-              alt={`Unknown #${selected.id}`}
+              alt="Subject"
+              style={{ height: 300 }}
             />
           )}
 
           <div className="dialogClassification">
-            BIOMETRIC ID ASSIGNMENT — FORM SEC-REG-02
+            BIOMETRIC ID ASSIGNMENT — SEC-REG-02
           </div>
 
-          {regError && <Alert severity="error">{regError}</Alert>}
+          {regError && <Alert severity="error" sx={{ mb: 3 }}>{regError}</Alert>}
 
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             {fields.map(({ key, label }) => (
               <TextField
                 key={key}
                 label={label}
-                size="small"
+                fullWidth
                 value={form[key]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
               />
@@ -196,24 +198,27 @@ export default function UnknownQueuePage() {
                 fullWidth
                 startIcon={<UploadFileIcon />}
                 onClick={() => fileRef.current.click()}
+                sx={{ height: 50, borderStyle: 'dashed' }}
               >
                 {files.length
-                  ? `${files.length} additional photo${files.length > 1 ? 's' : ''} selected`
-                  : 'Add Extra Photos (optional)'}
+                  ? `${files.length} ADDITIONAL SAMPLES ATTACHED`
+                  : 'ATTACH SUPPLEMENTARY PHOTOS'}
               </Button>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: 'var(--color-text-dim)', marginTop: 4 }}>
-                Captured face will be used automatically. Extra photos improve accuracy.
-              </div>
             </div>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeReg}>Cancel</Button>
-          <Button variant="contained" onClick={submit} disabled={saving}>
-            {saving ? 'Registering…' : 'Register Soldier'}
+        <DialogActions sx={{ p: 4, background: 'var(--bg3)' }}>
+          <Button onClick={closeReg} sx={{ color: 'var(--text-muted)' }}>CANCEL</Button>
+          <Button 
+            variant="contained" 
+            onClick={submit} 
+            disabled={saving}
+            sx={{ px: 4, height: 50, background: 'var(--green)', color: '#000' }}
+          >
+            {saving ? 'PROCESSING...' : 'CONFIRM IDENTITY'}
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

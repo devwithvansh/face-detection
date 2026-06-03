@@ -25,7 +25,6 @@ export default function PersonnelPage() {
   const [deleteError, setDeleteError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
 
-  // Registration dialog state
   const [regOpen, setRegOpen]   = useState(false);
   const [regForm, setRegForm]   = useState(emptyForm);
   const [regFiles, setRegFiles] = useState([]);
@@ -58,10 +57,7 @@ export default function PersonnelPage() {
       await api.delete(`/personnel/${id}`);
       await load();
     } catch (err) {
-      setDeleteError(
-        err.response?.data?.detail ||
-        `Delete failed (status ${err.response?.status || 'unknown'}). Confirm admin access.`
-      );
+      setDeleteError(err.response?.data?.detail || 'Delete failed.');
     } finally {
       setDeletingId(null);
     }
@@ -103,102 +99,120 @@ export default function PersonnelPage() {
   ];
 
   return (
-    <Stack spacing={2}>
-      {/* Header */}
+    <div className="mainContent">
       <div className="pageHeader">
         <div>
           <Typography className="pageTitle">Personnel Roster</Typography>
-          <div className="pageSub">REGISTERED SUBJECTS — {rows.length} TOTAL</div>
+          <div className="pageSub">AUTHORIZED SUBJECT DATABASE — {rows.length} REGISTERED</div>
         </div>
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" startIcon={<RefreshIcon />} onClick={load}>
-            Refresh
+        <Stack direction="row" spacing={2}>
+          <Button 
+            variant="outlined" 
+            startIcon={<RefreshIcon />} 
+            onClick={load}
+            sx={{ height: 50, px: 3 }}
+          >
+            REFRESH
           </Button>
-          <Button variant="contained" startIcon={<PersonAddIcon />} onClick={openReg}>
-            Enlist
+          <Button 
+            variant="contained" 
+            color="primary"
+            startIcon={<PersonAddIcon />} 
+            onClick={openReg}
+            sx={{ height: 50, px: 4, background: 'var(--green)', color: '#000' }}
+          >
+            ENLIST NEW
           </Button>
         </Stack>
       </div>
 
-      {error      && <Alert severity="error">{error}</Alert>}
-      {deleteError && <Alert severity="error" onClose={() => setDeleteError('')}>{deleteError}</Alert>}
-
-      {/* Search */}
-      <div className="filterPanel">
-        <TextField
-          label="Search roster"
-          size="small"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Army ID, name, rank, unit…"
-          sx={{ minWidth: 280 }}
-        />
-        <Typography className="pageSub" sx={{ ml: 'auto' }}>
-          SHOWING {filtered.length} / {rows.length}
-        </Typography>
-      </div>
-
-      {/* Table */}
-      <div className="panel">
-        <div className="panelHeader">Active Personnel</div>
-        <div className="tablePanel">
-          <div className="tableHeaderRow personnelHeaderRow">
-            <span>Army ID</span>
-            <span>Name</span>
-            <span>Rank</span>
-            <span>Battalion</span>
-            <span>Unit</span>
-            <span></span>
-          </div>
-
-          {filtered.length === 0 && (
-            <div className="emptyState">No personnel records found</div>
-          )}
-
-          {filtered.map((row) => (
-            <div className="gridRow personnelGrid" key={row.id ?? Math.random()}>
-              <span className="armyId">{row.army_id || <em style={{ opacity: 0.4 }}>—</em>}</span>
-              <span style={{ fontWeight: 600 }}>{row.full_name || <em style={{ opacity: 0.4 }}>—</em>}</span>
-              <span className="rankBadge">{row.rank || '—'}</span>
-              <span style={{ fontSize: 12 }}>{row.battalion || '—'}</span>
-              <span style={{ fontSize: 12 }}>{row.unit || '—'}</span>
-              <Button
-                color="error"
-                size="small"
-                startIcon={<DeleteIcon />}
-                disabled={deletingId === row.id}
-                onClick={() => handleDelete(row.id, row.full_name)}
-              >
-                {deletingId === row.id ? 'Removing…' : 'Remove'}
-              </Button>
+      <Stack spacing={4}>
+        {error && <Alert severity="error" sx={{ borderRadius: 0 }}>{error}</Alert>}
+        
+        <div className="panel" style={{ padding: 25, borderBottom: 'none' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
+            <TextField
+              label="FILTER BY ID, NAME, OR UNIT"
+              variant="outlined"
+              fullWidth
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Enter search parameters..."
+              sx={{ maxWidth: 500 }}
+            />
+            <div style={{ marginLeft: 'auto', fontFamily: 'var(--font-mono)', color: 'var(--amber)', letterSpacing: 2 }}>
+              SHOWING {filtered.length} OF {rows.length} RECORDS
             </div>
-          ))}
+          </div>
         </div>
-      </div>
 
-      {/* ── Registration dialog ── */}
+        <div className="panel">
+          <div className="panelHeader">
+            <div className="panelTitle">Active Duty Personnel</div>
+          </div>
+          <div className="tablePanel">
+            <div className="tableHeaderRow personnelHeaderRow">
+              <span>Service ID</span>
+              <span>Full Name</span>
+              <span>Rank</span>
+              <span>Battalion</span>
+              <span>Unit</span>
+              <span style={{ textAlign: 'right' }}>Actions</span>
+            </div>
+
+            {filtered.length === 0 && (
+              <div style={{ padding: 60, textAlign: 'center', color: 'var(--text-muted)', fontFamily: 'var(--font-display)', fontSize: 24, letterSpacing: 4 }}>
+                NO MATCHING RECORDS FOUND
+              </div>
+            )}
+
+            {filtered.map((row) => (
+              <div className="gridRow personnelGrid" key={row.id}>
+                <span className="armyId">{row.army_id || '—'}</span>
+                <span style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>{row.full_name || '—'}</span>
+                <span className="rankBadge">{row.rank || '—'}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{row.battalion || '—'}</span>
+                <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{row.unit || '—'}</span>
+                <div style={{ textAlign: 'right' }}>
+                  <Button
+                    color="error"
+                    size="small"
+                    variant="outlined"
+                    startIcon={<DeleteIcon />}
+                    disabled={deletingId === row.id}
+                    onClick={() => handleDelete(row.id, row.full_name)}
+                    sx={{ border: 'none', '&:hover': { background: 'var(--red-dim)' } }}
+                  >
+                    {deletingId === row.id ? 'REMOVING...' : 'REMOVE'}
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </Stack>
+
       <Dialog open={regOpen} onClose={closeReg} fullWidth maxWidth="sm">
-        <DialogTitle>Enlist New Personnel</DialogTitle>
+        <DialogTitle>Personnel Enrolment</DialogTitle>
         <DialogContent className="dialogForm">
           <div className="dialogClassification">
-            FORM SEC-REG-01 — BIOMETRIC ENROLMENT
+            BIOMETRIC REGISTRATION FORM — SEC-LEVEL 4 AUTHORIZATION REQUIRED
           </div>
 
-          {regError && <Alert severity="error">{regError}</Alert>}
+          {regError && <Alert severity="error" sx={{ mb: 3 }}>{regError}</Alert>}
 
-          <Stack spacing={2}>
+          <Stack spacing={3}>
             {fields.map(({ key, label }) => (
               <TextField
                 key={key}
                 label={label}
-                size="small"
+                fullWidth
                 value={regForm[key]}
                 onChange={(e) => setRegForm({ ...regForm, [key]: e.target.value })}
               />
             ))}
 
-            {/* File upload */}
-            <div>
+            <div style={{ marginTop: 10 }}>
               <input
                 ref={fileRef}
                 type="file"
@@ -212,24 +226,30 @@ export default function PersonnelPage() {
                 fullWidth
                 startIcon={<UploadFileIcon />}
                 onClick={() => fileRef.current.click()}
+                sx={{ height: 60, borderStyle: 'dashed' }}
               >
                 {regFiles.length
-                  ? `${regFiles.length} photo${regFiles.length > 1 ? 's' : ''} selected`
-                  : 'Upload Face Photos'}
+                  ? `${regFiles.length} IMAGES SELECTED`
+                  : 'UPLOAD BIOMETRIC SAMPLES (PHOTOS)'}
               </Button>
-              <div style={{ fontFamily: "'Share Tech Mono', monospace", fontSize: 10, color: 'var(--color-text-dim)', marginTop: 4, letterSpacing: 0.5 }}>
-                Upload 2–5 photos for best recognition accuracy. Different angles recommended.
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 10, textAlign: 'center', letterSpacing: 1 }}>
+                MINIMUM 3 HIGH-RESOLUTION SAMPLES REQUIRED FOR OPTIMAL ACCURACY
               </div>
             </div>
           </Stack>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={closeReg}>Cancel</Button>
-          <Button variant="contained" onClick={submitReg} disabled={regSaving}>
-            {regSaving ? 'Enlisting…' : 'Enlist Soldier'}
+        <DialogActions sx={{ p: 4, background: 'var(--bg3)' }}>
+          <Button onClick={closeReg} sx={{ color: 'var(--text-muted)' }}>ABORT</Button>
+          <Button 
+            variant="contained" 
+            onClick={submitReg} 
+            disabled={regSaving}
+            sx={{ px: 4, height: 50, background: 'var(--green)', color: '#000' }}
+          >
+            {regSaving ? 'PROCESSING...' : 'CONFIRM ENLISTMENT'}
           </Button>
         </DialogActions>
       </Dialog>
-    </Stack>
+    </div>
   );
 }

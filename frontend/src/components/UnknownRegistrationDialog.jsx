@@ -77,48 +77,53 @@ export default function UnknownRegistrationDialog({
   };
 
   const fields = [
-    { key: 'army_id',   label: 'Army ID' },
-    { key: 'full_name', label: 'Full Name' },
-    { key: 'rank',      label: 'Rank' },
+    { key: 'army_id',   label: 'Service ID Number' },
+    { key: 'full_name', label: 'Full Legal Name' },
+    { key: 'rank',      label: 'Rank / Grade' },
     { key: 'battalion', label: 'Battalion' },
-    { key: 'unit',      label: 'Unit' },
+    { key: 'unit',      label: 'Assigned Unit' },
   ];
 
   return (
     <Dialog open={open} onClose={onDismiss} fullWidth maxWidth="sm">
-      <DialogTitle>
-        ⚠ Unidentified Subject — #{unknown?.unknown_id}
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 2, color: 'var(--red-bright) !important' }}>
+        <div style={{ width: 12, height: 12, borderRadius: '50%', background: 'var(--red-bright)', animation: 'pulse 1s infinite' }} />
+        ALERT: UNIDENTIFIED SUBJECT DETECTED
       </DialogTitle>
 
       <DialogContent className="dialogForm">
-        {/* Captured image */}
         {unknown?.image_path && (
-          <img
-            className="registrationPreview"
-            src={storageUrl(unknown.image_path)}
-            alt={`Unknown #${unknown?.unknown_id}`}
-          />
+          <div style={{ position: 'relative', marginBottom: 30 }}>
+            <img
+              className="registrationPreview"
+              src={storageUrl(unknown.image_path)}
+              alt="Unknown Subject"
+              style={{ height: 300, border: '1px solid var(--red-dim)' }}
+            />
+            <div style={{ position: 'absolute', top: 15, right: 15, background: 'var(--red)', color: '#fff', padding: '4px 12px', fontFamily: 'var(--font-mono)', fontSize: 12, fontWeight: 900 }}>
+              ID: #{unknown?.unknown_id}
+            </div>
+          </div>
         )}
 
-        <div className="dialogClassification">
-          ALERT: Unknown subject detected at {unknown?.camera_id?.toUpperCase() || 'UNKNOWN CAM'}.
-          Register or dismiss.
+        <div className="dialogClassification" style={{ borderLeftColor: 'var(--red)' }}>
+          CRITICAL: Subject captured at {unknown?.camera_id?.toUpperCase() || 'UNKNOWN SECTOR'}. 
+          Assign identity credentials to resolve alert.
         </div>
 
-        {message && <Alert severity="error">{message}</Alert>}
+        {message && <Alert severity="error" sx={{ mb: 3, borderRadius: 0 }}>{message}</Alert>}
 
-        <Stack spacing={2}>
+        <Stack spacing={3}>
           {fields.map(({ key, label }) => (
             <TextField
               key={key}
               label={label}
-              size="small"
+              fullWidth
               value={form[key]}
               onChange={(e) => update(key, e.target.value)}
             />
           ))}
 
-          {/* Optional extra photos */}
           <div>
             <input
               ref={fileRef}
@@ -131,49 +136,50 @@ export default function UnknownRegistrationDialog({
             <Button
               variant="outlined"
               fullWidth
-              size="small"
               startIcon={<UploadFileIcon />}
               onClick={() => fileRef.current.click()}
+              sx={{ height: 50, borderStyle: 'dashed' }}
             >
               {files.length
-                ? `${files.length} extra photo${files.length > 1 ? 's' : ''} selected`
-                : 'Add Extra Photos (optional)'}
+                ? `${files.length} ADDITIONAL SAMPLES ATTACHED`
+                : 'ATTACH SUPPLEMENTARY PHOTOS'}
             </Button>
             <div style={{
-              fontFamily: "'Share Tech Mono', monospace",
+              fontFamily: 'var(--font-mono)',
               fontSize: 10,
-              color: 'var(--color-text-dim)',
-              marginTop: 4,
+              color: 'var(--text-muted)',
+              marginTop: 10,
+              textAlign: 'center'
             }}>
-              Captured face is used automatically. Extra photos improve future accuracy.
+              Primary face capture is used by default. Additional samples improve biometric confidence.
             </div>
           </div>
         </Stack>
       </DialogContent>
 
-      <DialogActions>
+      <DialogActions sx={{ p: 4, background: 'var(--bg3)', gap: 2 }}>
         <Button
           color="error"
           startIcon={<ClearAllIcon />}
           onClick={clearAll}
-          size="small"
+          sx={{ mr: 'auto' }}
         >
-          Clear All
+          CLEAR ALL
         </Button>
         <Button
           startIcon={<SkipNextIcon />}
           onClick={onDismiss}
-          size="small"
         >
-          Skip
+          DISMISS
         </Button>
         <Button
           variant="contained"
           startIcon={<HowToRegIcon />}
           onClick={submit}
           disabled={saving}
+          sx={{ background: 'var(--green)', color: '#000', px: 4, height: 50 }}
         >
-          {saving ? 'Registering…' : 'Register Soldier'}
+          {saving ? 'PROCESSING...' : 'RESOLVE & REGISTER'}
         </Button>
       </DialogActions>
     </Dialog>

@@ -1,13 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { BrowserRouter, NavLink, Route, Routes, Navigate, useLocation } from 'react-router-dom';
+import { BrowserRouter, NavLink, Route, Routes, Navigate } from 'react-router-dom';
 import { CssBaseline, ThemeProvider, createTheme, Button } from '@mui/material';
 import DashboardIcon from '@mui/icons-material/Dashboard';
 import BadgeIcon from '@mui/icons-material/Badge';
 import PersonSearchIcon from '@mui/icons-material/PersonSearch';
 import HistoryIcon from '@mui/icons-material/History';
 import ShieldIcon from '@mui/icons-material/Shield';
-import CameraAltIcon from '@mui/icons-material/CameraAlt';
 import LogoutIcon from '@mui/icons-material/Logout';
 import { api, setAuthToken, setUnauthorizedHandler, buildWsUrl, isTokenExpired } from './services/api.js';
 import LiveDashboard from './pages/LiveDashboard.jsx';
@@ -23,17 +22,17 @@ const armyTheme = createTheme({
     primary:    { main: '#4caf50' },
     secondary:  { main: '#ffb300' },
     error:      { main: '#e53935' },
-    background: { default: '#0a0e0a', paper: '#182019' },
-    text:       { primary: '#e0e8e1', secondary: '#8a9e8b' },
+    background: { default: '#050705', paper: '#121812' },
+    text:       { primary: '#e0e8e1', secondary: '#a0b0a1' },
   },
-  shape: { borderRadius: 4 },
+  shape: { borderRadius: 2 },
   typography: { fontFamily: "'Barlow', sans-serif" },
   components: {
-    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#0a0e0a' } } },
+    MuiCssBaseline: { styleOverrides: { body: { backgroundColor: '#050705' } } },
   },
 });
 
-/* ── Clock ── */
+/* ── Clock (Fixed Time Fetching) ── */
 function LiveClock() {
   const [time, setTime] = useState(new Date());
   useEffect(() => {
@@ -41,18 +40,22 @@ function LiveClock() {
     return () => clearInterval(t);
   }, []);
   
+  // Format to local time string as requested
+  const timeStr = time.toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: true }).toUpperCase();
+  const dateStr = time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase();
+
   return (
     <div className="topbarInfoGroup">
       <div className="topbarInfoItem">
-        <div className="topbarInfoLabel">Time</div>
+        <div className="topbarInfoLabel">Local Time</div>
         <div className="topbarInfoValue" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
-          {time.toUTCString().slice(17, 25)} UTC
+          {timeStr}
         </div>
       </div>
       <div className="topbarInfoItem">
-        <div className="topbarInfoLabel">Date</div>
+        <div className="topbarInfoLabel">Mission Date</div>
         <div className="topbarInfoValue">
-          {time.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase()}
+          {dateStr}
         </div>
       </div>
     </div>
@@ -86,11 +89,11 @@ function LoginPage({ onLogin, externalError }) {
     <div className="loginPage">
       <div className="loginCard">
         <div className="loginLogo">
-          <div className="loginShield"><ShieldIcon fontSize="large" /></div>
-          <div className="loginTitle">Army Surveillance</div>
-          <div className="loginSubtitle">Face Recognition & Access Control</div>
+          <div className="loginShield"><ShieldIcon sx={{ fontSize: 80 }} /></div>
+          <div className="loginTitle">ARMY COMMAND</div>
+          <div className="loginSubtitle">Surveillance & Access Control</div>
         </div>
-        <div className="loginClassification">⬛ Restricted Access — Authorised Personnel Only</div>
+        <div className="loginClassification">RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY</div>
         <div className="loginFields">
           <div className="loginField">
             <label>Operator ID</label>
@@ -106,7 +109,7 @@ function LoginPage({ onLogin, externalError }) {
             <label>Passphrase</label>
             <input
               type="password"
-              placeholder="Enter password"
+              placeholder="••••••••"
               value={creds.password}
               onChange={(e) => setCreds({ ...creds, password: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -114,10 +117,12 @@ function LoginPage({ onLogin, externalError }) {
             />
           </div>
           {(externalError || error) && (
-            <div className="loginError">⚠ {externalError || error}</div>
+            <div className="loginError" style={{ color: 'var(--red-bright)', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 14 }}>
+              ⚠ {externalError || error}
+            </div>
           )}
-          <Button className="loginBtn" onClick={handleSubmit} disabled={loading}>
-            {loading ? 'Authenticating…' : 'Authenticate'}
+          <Button className="loginBtn" onClick={handleSubmit} disabled={loading} fullWidth>
+            {loading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
           </Button>
         </div>
       </div>
@@ -125,12 +130,11 @@ function LoginPage({ onLogin, externalError }) {
   );
 }
 
-/* ── Sidebar ── */
+/* ── Sidebar (Removed redundant Cameras option) ── */
 function Sidebar({ unknownCount }) {
   const nav = [
     { to: '/',          label: 'Live Surveillance', icon: <DashboardIcon /> },
-    { to: '/cameras',   label: 'Cameras',           icon: <CameraAltIcon /> },
-    { to: '/personnel', label: 'Personnel',          icon: <BadgeIcon /> },
+    { to: '/personnel', label: 'Personnel Roster',  icon: <BadgeIcon /> },
     { to: '/unknown',   label: 'Unknown Queue',      icon: <PersonSearchIcon />, badge: unknownCount },
     { to: '/attendance',label: 'Access Logs',        icon: <HistoryIcon /> },
   ];
@@ -138,8 +142,8 @@ function Sidebar({ unknownCount }) {
   return (
     <div className="sidebar">
       <div className="sidebarLogo">
-        <img src="/logo.png" alt="Army Logo" className="sidebarLogoImg" onError={(e) => e.target.style.display='none'} />
-        {!document.querySelector('.sidebarLogoImg') && <div style={{ fontSize: 40 }}>🎖️</div>}
+        <div style={{ fontSize: 60, filter: 'drop-shadow(0 0 10px var(--green-glow))' }}>🎖️</div>
+        <div style={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, marginTop: 10, letterSpacing: 4 }}>HQ COMMAND</div>
       </div>
 
       <nav className="sidebarNav">
@@ -166,12 +170,12 @@ function Sidebar({ unknownCount }) {
 }
 
 /* ── Topbar ── */
-function Topbar({ token, onLogout, detections }) {
+function Topbar({ onLogout }) {
   return (
     <div className="topbar">
       <div className="topbarTitle">
-        <div className="topbarTitleMain">Army Surveillance System</div>
-        <div className="topbarTitleSub">Face Recognition &amp; Access Control</div>
+        <div className="topbarTitleMain">ARMY SURVEILLANCE SYSTEM</div>
+        <div className="topbarTitleSub">Advanced Face Recognition & Access Management</div>
       </div>
 
       <div className="topbarInfoGroup">
@@ -179,7 +183,7 @@ function Topbar({ token, onLogout, detections }) {
           <div className="topbarInfoLabel">System Status</div>
           <div className="topbarStatus">
             <div className="topbarStatusDot" />
-            <div className="topbarOperatorName" style={{ color: 'var(--green-bright)', fontSize: 14 }}>Operational</div>
+            <div style={{ color: 'var(--green-bright)', fontSize: 18, fontWeight: 700, fontFamily: 'var(--font-display)', letterSpacing: 2 }}>OPERATIONAL</div>
           </div>
         </div>
       </div>
@@ -192,7 +196,7 @@ function Topbar({ token, onLogout, detections }) {
           <div className="topbarOperatorName">Operator</div>
           <div className="topbarOperatorUnit">Control Room 01</div>
         </div>
-        <LogoutIcon style={{ fontSize: 18, color: 'var(--text-muted)', marginLeft: 10 }} />
+        <LogoutIcon style={{ fontSize: 20, color: 'var(--text-muted)', marginLeft: 15 }} />
       </div>
     </div>
   );
@@ -296,7 +300,7 @@ function App() {
         <div className="appShell">
           <Sidebar unknownCount={unknownCount} />
           <div className="mainWrapper">
-            <Topbar token={token} onLogout={logout} detections={liveDetections} />
+            <Topbar onLogout={logout} />
             <div className="mainContent">
               <Routes>
                 <Route path="/" element={
@@ -304,9 +308,9 @@ function App() {
                     <LiveDashboard token={token} onDetections={setLiveDetections} />
                   </div>
                 } />
-                <Route path="/personnel"  element={<div className="pageContent"><PersonnelPage /></div>} />
-                <Route path="/unknown"    element={<div className="pageContent"><UnknownQueuePage /></div>} />
-                <Route path="/attendance" element={<div className="pageContent"><AttendancePage /></div>} />
+                <Route path="/personnel"  element={<PersonnelPage />} />
+                <Route path="/unknown"    element={<UnknownQueuePage />} />
+                <Route path="/attendance" element={<AttendancePage />} />
                 <Route path="/cameras"    element={<Navigate to="/" replace />} />
               </Routes>
             </div>

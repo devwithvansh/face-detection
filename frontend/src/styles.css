@@ -7,13 +7,13 @@
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700;800&family=Barlow:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500;600&display=swap');
 
 :root {
-  --bg:            #0a0e0a;
-  --bg2:           #0f140f;
-  --bg3:           #141a14;
-  --surface:       #182019;
-  --surface2:      #1e281f;
-  --border:        #253026;
-  --border2:       #304032;
+  --bg:            #050705;
+  --bg2:           #0a0e0a;
+  --bg3:           #0f140f;
+  --surface:       #121812;
+  --surface2:      #182019;
+  --border:        #1d261e;
+  --border2:       #2a382b;
   --green:         #4caf50;
   --green-bright:  #69f075;
   --green-dim:     #1b3a1d;
@@ -25,18 +25,18 @@
   --amber:         #ffb300;
   --amber-dim:     rgba(255,179,0,0.15);
   --text:          #e0e8e1;
-  --text-dim:      #8a9e8b;
-  --text-muted:    #4a5f4b;
+  --text-dim:      #a0b0a1;
+  --text-muted:    #5a6e5b;
   --olive:         #5a6e3a;
   
   --font-display:  'Barlow Condensed', sans-serif;
   --font-body:     'Barlow', sans-serif;
   --font-mono:     'JetBrains Mono', monospace;
 
-  --sidebar-w:     260px;
-  --topbar-h:      100px;
-  --radius:        4px;
-  --radius-lg:     8px;
+  --sidebar-w:     280px;
+  --topbar-h:      110px;
+  --radius:        2px;
+  --radius-lg:     4px;
 }
 
 /* ================================================================
@@ -49,12 +49,24 @@ html, body, #root {
   background: var(--bg);
   color: var(--text);
   font-family: var(--font-body);
-  font-size: 16px; /* Increased base font size */
-  line-height: 1.4;
+  font-size: 16px;
+  line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   height: 100vh;
   width: 100vw;
   overflow: hidden;
+}
+
+/* Scanline effect */
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+  background-size: 100% 4px, 3px 100%;
+  pointer-events: none;
+  z-index: 10000;
+  opacity: 0.1;
 }
 
 /* ================================================================
@@ -66,20 +78,6 @@ html, body, #root {
   height: 100vh;
   width: 100vw;
   background: var(--bg);
-  overflow: hidden;
-}
-
-/* Subtle scanline overlay */
-.appShell::after {
-  content: '';
-  position: fixed;
-  inset: 0;
-  background: repeating-linear-gradient(
-    0deg, transparent, transparent 2px,
-    rgba(0,0,0,0.05) 2px, rgba(0,0,0,0.05) 4px
-  );
-  pointer-events: none;
-  z-index: 9999;
 }
 
 /* ================================================================
@@ -93,47 +91,38 @@ html, body, #root {
   border-right: 1px solid var(--border);
   display: flex;
   flex-direction: column;
-  flex-shrink: 0;
   z-index: 100;
 }
 
 .sidebarLogo {
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  padding: 30px 20px;
+  text-align: center;
   border-bottom: 1px solid var(--border);
-}
-
-.sidebarLogoImg {
-  width: 120px;
-  height: auto;
-  filter: drop-shadow(0 0 10px var(--green-glow));
 }
 
 .sidebarNav {
   flex: 1;
-  padding: 20px 10px;
+  padding: 30px 15px;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 12px;
 }
 
 .navItem {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 14px 18px;
+  gap: 18px;
+  padding: 16px 20px;
   border-radius: var(--radius);
   font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 600;
-  letter-spacing: 1.5px;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 2px;
   text-transform: uppercase;
-  color: var(--text-dim);
+  color: var(--text-muted);
   text-decoration: none;
-  transition: all 0.2s;
-  border-left: 4px solid transparent;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  border-left: 0px solid var(--green-bright);
 }
 
 .navItem:hover {
@@ -142,49 +131,49 @@ html, body, #root {
 }
 
 .navItem.active {
-  background: rgba(76,175,80,0.1);
-  color: var(--text);
-  border-left-color: var(--green-bright);
+  background: var(--surface2);
+  color: var(--green-bright);
+  border-left-width: 5px;
 }
 
 .navItemIcon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 22px;
+  font-size: 24px;
 }
 
 .navBadge {
   margin-left: auto;
   background: var(--red);
-  color: white;
+  color: #fff;
   font-size: 12px;
+  font-weight: 800;
   padding: 2px 8px;
-  border-radius: 10px;
+  border-radius: 2px;
   font-family: var(--font-mono);
 }
 
 .sidebarMotto {
-  padding: 25px;
+  padding: 30px;
   border-top: 1px solid var(--border);
-  text-align: center;
+  background: var(--bg3);
 }
 
 .sidebarMottoText {
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 800;
+  font-size: 22px;
+  font-weight: 900;
   color: var(--amber);
-  letter-spacing: 1px;
+  letter-spacing: 2px;
+  text-align: center;
 }
 
 .sidebarMottoCap {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
-  margin-top: 4px;
+  margin-top: 6px;
   text-transform: uppercase;
-  letter-spacing: 2px;
+  letter-spacing: 3px;
+  text-align: center;
 }
 
 /* ================================================================
@@ -197,8 +186,8 @@ html, body, #root {
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 30px;
-  gap: 30px;
+  padding: 0 40px;
+  gap: 40px;
 }
 
 .topbarTitle {
@@ -207,9 +196,9 @@ html, body, #root {
 
 .topbarTitleMain {
   font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 800;
-  letter-spacing: 3px;
+  font-size: 42px;
+  font-weight: 900;
+  letter-spacing: 4px;
   color: var(--text);
   text-transform: uppercase;
   line-height: 1;
@@ -219,21 +208,19 @@ html, body, #root {
   font-family: var(--font-mono);
   font-size: 14px;
   color: var(--text-muted);
-  letter-spacing: 3px;
+  letter-spacing: 4px;
   text-transform: uppercase;
-  margin-top: 4px;
+  margin-top: 6px;
 }
 
 .topbarInfoGroup {
   display: flex;
-  gap: 40px;
-  align-items: center;
+  gap: 50px;
 }
 
 .topbarInfoItem {
   display: flex;
   flex-direction: column;
-  gap: 4px;
 }
 
 .topbarInfoLabel {
@@ -241,59 +228,44 @@ html, body, #root {
   font-size: 11px;
   color: var(--text-muted);
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
+  margin-bottom: 4px;
 }
 
 .topbarInfoValue {
   font-family: var(--font-display);
-  font-size: 20px;
+  font-size: 24px;
   font-weight: 700;
   color: var(--text);
+  letter-spacing: 1px;
 }
 
 .topbarStatus {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .topbarStatusDot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
   background: var(--green-bright);
-  box-shadow: 0 0 10px var(--green-bright);
+  box-shadow: 0 0 15px var(--green-bright);
 }
 
 .topbarOperator {
   display: flex;
   align-items: center;
-  gap: 15px;
-  padding: 10px 20px;
+  gap: 20px;
+  padding: 12px 24px;
   background: var(--surface);
   border: 1px solid var(--border2);
-  border-radius: var(--radius);
-}
-
-.topbarOperatorAvatar {
-  font-size: 28px;
-}
-
-.topbarOperatorName {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
-
-.topbarOperatorUnit {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
+  cursor: pointer;
 }
 
 /* ================================================================
-   MAIN CONTENT
+   PAGE LAYOUTS
    ================================================================ */
 
 .mainWrapper {
@@ -306,29 +278,51 @@ html, body, #root {
 
 .mainContent {
   flex: 1;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
+  overflow-y: auto;
+  padding: 40px;
 }
 
-.pageContentFull {
-  flex: 1;
-  height: 100%;
-  width: 100%;
+.pageHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  margin-bottom: 40px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 20px;
+}
+
+.pageTitle {
+  font-family: var(--font-display) !important;
+  font-size: 56px !important;
+  font-weight: 900 !important;
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  line-height: 1 !important;
+  color: var(--text);
+}
+
+.pageSub {
+  font-family: var(--font-mono);
+  font-size: 14px;
+  color: var(--amber);
+  text-transform: uppercase;
+  letter-spacing: 4px;
+  margin-top: 10px;
 }
 
 /* ================================================================
-   LIVE DASHBOARD
+   LIVE DASHBOARD (POLISHED & HIGH IMPACT)
    ================================================================ */
 
 .liveDashboard {
   display: grid;
-  grid-template-columns: 1fr 400px;
+  grid-template-columns: 1fr 450px;
   grid-template-rows: auto 1fr auto;
-  gap: 20px;
-  height: 100%;
-  padding: 25px;
+  gap: 30px;
+  height: calc(100vh - var(--topbar-h));
+  padding: 30px;
   box-sizing: border-box;
+  overflow: hidden;
 }
 
 .feedHeader {
@@ -347,69 +341,50 @@ html, body, #root {
 .feedTitle {
   font-family: var(--font-display);
   font-size: 48px;
-  font-weight: 800;
+  font-weight: 900;
   letter-spacing: 4px;
-}
-
-.feedCam {
-  font-family: var(--font-mono);
-  font-size: 16px;
-  color: var(--green-bright);
-  letter-spacing: 2px;
 }
 
 .topStats {
   display: flex;
-  gap: 15px;
+  gap: 20px;
 }
 
 .statBox {
   background: var(--surface);
-  border: 1px solid var(--border);
-  padding: 10px 20px;
-  min-width: 140px;
+  border: 1px solid var(--border2);
+  padding: 10px 25px;
+  min-width: 150px;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-radius: var(--radius);
+  flex-direction: column;
+  align-items: flex-end;
 }
 
 .statBoxLabel {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text-dim);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-muted);
   text-transform: uppercase;
+  letter-spacing: 1px;
 }
 
 .statBoxValue {
   font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 36px;
+  font-weight: 900;
 }
 
-.statBoxIcon {
-  font-size: 24px;
-  opacity: 0.5;
-}
-
-.statBox.known .statBoxValue { color: var(--text); }
-.statBox.unknown .statBoxValue { color: var(--text); }
-.statBox.unknown { border-color: var(--red-dim); }
-
-/* Center Layout */
 .liveCenter {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 25px;
   min-height: 0;
 }
 
 .videoContainer {
   flex: 1;
   background: #000;
-  border: 2px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border2);
   position: relative;
   overflow: hidden;
   display: flex;
@@ -418,346 +393,159 @@ html, body, #root {
 }
 
 .videoContainer img {
-  max-width: 100%;
-  max-height: 100%;
+  width: 100%;
+  height: 100%;
   object-fit: contain;
 }
 
 .videoOverlay {
   position: absolute;
-  top: 20px;
-  left: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  top: 30px;
+  left: 30px;
+  z-index: 10;
 }
 
 .liveBadge {
   background: var(--red);
-  color: white;
-  padding: 4px 12px;
+  color: #fff;
+  padding: 6px 18px;
   font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 14px;
-  letter-spacing: 2px;
+  font-weight: 900;
+  font-size: 20px;
+  letter-spacing: 3px;
   display: flex;
   align-items: center;
-  gap: 8px;
-  border-radius: 2px;
+  gap: 10px;
 }
 
-.fpsBadge {
-  background: rgba(0,0,0,0.7);
-  color: var(--text);
-  padding: 4px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  border-radius: 2px;
-}
-
-.resBadge {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  background: rgba(0,0,0,0.7);
-  color: var(--text-dim);
-  padding: 4px 10px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  border-radius: 2px;
-}
-
-/* Detection Card */
 .identityCard {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  padding: 20px;
+  border: 1px solid var(--border2);
+  padding: 30px;
   display: grid;
-  grid-template-columns: 140px 1fr 240px 160px;
-  gap: 25px;
+  grid-template-columns: 160px 1fr 220px;
+  gap: 40px;
   align-items: center;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
 }
 
 .identityAvatar {
-  width: 140px;
-  height: 140px;
-  border: 2px solid var(--border2);
-  border-radius: var(--radius);
+  width: 160px;
+  height: 160px;
+  border: 1px solid var(--green);
   object-fit: cover;
 }
 
 .identityInfo h2 {
   font-family: var(--font-display);
-  font-size: 32px;
-  font-weight: 800;
-  letter-spacing: 1px;
-  margin-bottom: 10px;
+  font-size: 52px;
+  font-weight: 900;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: var(--green-bright);
 }
 
 .identityMeta {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-  font-family: var(--font-mono);
-  font-size: 14px;
-  color: var(--text-dim);
-}
-
-.identityStatus {
-  color: var(--green-bright);
-  font-weight: 700;
-  margin-top: 10px;
-}
-
-.identityTime {
-  text-align: center;
-  border-left: 1px solid var(--border);
-  border-right: 1px solid var(--border);
-}
-
-.identityTimeValue {
-  font-family: var(--font-display);
-  font-size: 48px;
-  font-weight: 800;
-  color: var(--green-bright);
-}
-
-.identityDateValue {
   font-family: var(--font-mono);
   font-size: 16px;
   color: var(--text-dim);
-  margin-top: 5px;
-}
-
-.identityAction {
-  background: var(--green-dim);
-  border: 1px solid var(--green);
-  border-radius: var(--radius);
-  padding: 15px;
-  text-align: center;
   display: flex;
   flex-direction: column;
-  align-items: center;
-  gap: 8px;
+  gap: 6px;
 }
 
-.identityActionLabel {
-  font-family: var(--font-display);
-  font-size: 18px;
-  font-weight: 800;
-  color: var(--green-bright);
-}
-
-.identityActionIcon {
-  font-size: 32px;
-  color: var(--green-bright);
-}
-
-/* Bottom Stats */
-.bottomStats {
-  grid-column: 1 / 2;
-  display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 20px;
-}
-
-.bottomStatItem {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  padding: 15px 20px;
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  border-radius: var(--radius);
-}
-
-.bottomStatIcon {
-  font-size: 32px;
-  color: var(--green);
-}
-
-.bottomStatLabel {
-  font-family: var(--font-display);
-  font-size: 14px;
-  font-weight: 700;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.bottomStatValue {
-  font-family: var(--font-display);
-  font-size: 36px;
-  font-weight: 800;
-}
-
-/* Right Panel */
 .liveRight {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: 30px;
+  min-height: 0;
 }
 
 .panel {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
+  border: 1px solid var(--border2);
   display: flex;
   flex-direction: column;
+  min-height: 0;
 }
 
 .panelHeader {
-  padding: 15px 20px;
-  border-bottom: 1px solid var(--border);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
+  padding: 15px 25px;
+  background: var(--surface2);
+  border-bottom: 1px solid var(--border2);
 }
 
 .panelTitle {
   font-family: var(--font-display);
-  font-size: 20px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 800;
   text-transform: uppercase;
-  letter-spacing: 1.5px;
+  letter-spacing: 2px;
 }
 
 .panelBody {
   padding: 20px;
-}
-
-.camControls {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-}
-
-.camInput {
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.camInput label {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-}
-
-.camSelect {
-  background: var(--bg3);
-  border: 1px solid var(--border2);
-  color: var(--text);
-  padding: 10px;
-  font-family: var(--font-mono);
-  border-radius: var(--radius);
-}
-
-.camButtons {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-}
-
-.camBtn {
-  padding: 12px;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: 18px;
-  border: none;
-  border-radius: var(--radius);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-}
-
-.camBtn.start { background: var(--green); color: white; }
-.camBtn.stop { background: var(--red); color: white; }
-
-/* Event List */
-.eventList {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  max-height: 400px;
+  flex: 1;
   overflow-y: auto;
 }
 
-.eventItem {
+.bottomStats {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 30px;
+}
+
+.bottomStatItem {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  padding: 20px 30px;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px;
-  background: var(--bg3);
-  border-radius: var(--radius);
+  gap: 25px;
 }
 
-.eventAvatar {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  object-fit: cover;
-}
+.bottomStatIcon { font-size: 32px; }
+.bottomStatLabel { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.bottomStatValue { font-family: var(--font-display); font-size: 42px; font-weight: 900; }
 
-.eventInfo {
-  flex: 1;
-}
+/* ================================================================
+   PERSONNEL & ACCESS LOGS TABLES
+   ================================================================ */
 
-.eventName {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 700;
-  text-transform: uppercase;
-}
+.tablePanel { width: 100%; }
+.tableHeaderRow { background: var(--bg3); font-family: var(--font-display); font-size: 18px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-muted); border-bottom: 1px solid var(--border2); }
+.gridRow { border-bottom: 1px solid var(--border); transition: background 0.2s; align-items: center; }
+.gridRow:hover { background: var(--surface2); }
+.personnelGrid, .personnelHeaderRow { display: grid; grid-template-columns: 150px 1fr 120px 150px 150px 120px; gap: 20px; padding: 20px 25px; }
+.armyId { font-family: var(--font-mono); color: var(--green-bright); font-weight: 600; }
+.rankBadge { font-family: var(--font-display); font-weight: 700; color: var(--amber); }
 
-.eventMeta {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
+/* ================================================================
+   LOGIN PAGE
+   ================================================================ */
 
-.eventTime {
-  font-family: var(--font-mono);
-  font-size: 11px;
-  color: var(--text-muted);
-}
+.loginPage { height: 100vh; width: 100vw; display: flex; align-items: center; justify-content: center; background: radial-gradient(circle at center, var(--bg3) 0%, var(--bg) 100%); }
+.loginCard { width: 600px; background: var(--surface); border: 1px solid var(--border2); padding: 60px; box-shadow: 0 0 100px rgba(0,0,0,0.8), 0 0 20px var(--green-glow); }
+.loginLogo { text-align: center; margin-bottom: 50px; }
+.loginShield { color: var(--green-bright); margin-bottom: 20px; transform: scale(2.5); }
+.loginTitle { font-family: var(--font-display); font-size: 72px; font-weight: 900; letter-spacing: 10px; text-transform: uppercase; line-height: 1; }
+.loginSubtitle { font-family: var(--font-mono); font-size: 18px; color: var(--text-muted); letter-spacing: 6px; text-transform: uppercase; margin-top: 20px; }
+.loginClassification { background: var(--red-dim); color: var(--red-bright); padding: 15px; text-align: center; font-family: var(--font-mono); font-size: 14px; font-weight: 700; letter-spacing: 2px; margin-bottom: 50px; border: 1px solid var(--red); }
+.loginFields { display: flex; flex-direction: column; gap: 35px; }
+.loginField label { display: block; font-family: var(--font-display); font-size: 24px; font-weight: 700; text-transform: uppercase; letter-spacing: 2px; color: var(--text-dim); margin-bottom: 12px; }
+.loginField input { width: 100%; background: var(--bg); border: 1px solid var(--border2); padding: 25px; color: var(--text); font-family: var(--font-mono); font-size: 28px; outline: none; }
+.loginBtn { margin-top: 30px !important; height: 90px !important; background: var(--green) !important; color: #000 !important; font-family: var(--font-display) !important; font-size: 36px !important; font-weight: 900 !important; letter-spacing: 6px !important; }
 
-.eventStatus {
-  font-size: 18px;
-}
+/* ================================================================
+   MUI OVERRIDES
+   ================================================================ */
 
-/* Secure Panel */
-.securePanel {
-  background: var(--green-dim);
-  border: 1px solid var(--green);
-  border-radius: var(--radius-lg);
-  padding: 20px;
-  display: flex;
-  align-items: center;
-  gap: 20px;
-}
-
-.secureIcon {
-  font-size: 40px;
-  color: var(--green-bright);
-}
-
-.secureText h3 {
-  font-family: var(--font-display);
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--green-bright);
-}
-
-.secureText p {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--green-bright);
-  opacity: 0.8;
-}
-
-/* Animations */
-@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+.MuiDialog-paper { background: var(--surface) !important; border: 1px solid var(--border2) !important; border-radius: 0 !important; box-shadow: 0 0 50px rgba(0,0,0,0.8) !important; }
+.MuiDialogTitle-root { font-family: var(--font-display) !important; font-size: 36px !important; font-weight: 900 !important; text-transform: uppercase; color: var(--amber) !important; padding: 30px !important; border-bottom: 1px solid var(--border2); }
+.MuiTextField-root label { color: var(--text-muted) !important; }
+.MuiOutlinedInput-root { background: var(--bg) !important; border-radius: 0 !important; }
+.MuiOutlinedInput-notchedOutline { border-color: var(--border2) !important; }
+.MuiInputBase-input { color: var(--text) !important; font-family: var(--font-mono) !important; }
+.MuiButton-contained { border-radius: 0 !important; font-family: var(--font-display) !important; font-weight: 800 !important; text-transform: uppercase !important; }
+.MuiButton-outlined { border-radius: 0 !important; font-family: var(--font-display) !important; font-weight: 700 !important; text-transform: uppercase !important; }
