@@ -164,7 +164,7 @@ export default function LiveDashboard({ token, onDetections }) {
           {frame ? (
             <img src={frame} alt="Surveillance Feed" />
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 32, letterSpacing: 10 }}>AWAITING SIGNAL...</div>
+            <div style={{ color: 'var(--text-muted)', fontFamily: 'var(--font-mono)', fontSize: 24, letterSpacing: 8, position: 'absolute' }}>AWAITING SIGNAL...</div>
           )}
           <div className="videoOverlay">
             <div className="liveBadge">
@@ -177,40 +177,35 @@ export default function LiveDashboard({ token, onDetections }) {
           </div>
         </div>
 
-        {/* Identity Card */}
-        <div className="identityCard">
-          {primary ? (
-            <>
-              <img className="identityAvatar" src={storageUrl(primary.photo_path)} alt="Avatar" />
-              <div className="identityInfo">
-                <h2>{primary.full_name || 'UNIDENTIFIED'}</h2>
-                <div className="identityMeta">
-                  <div>SERVICE ID: {primary.army_id || 'NOT REGISTERED'}</div>
-                  <div>RANK/GRADE: {primary.rank || 'N/A'}</div>
-                  <div>ASSIGNED UNIT: {primary.unit || 'UNKNOWN'}</div>
-                </div>
+        {/* Identity Card — only shown when there is an active detection */}
+        {primary && (
+          <div className="identityCard">
+            <div className="identityAvatar" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', background: primary.known ? 'var(--green-dim)' : 'var(--red-dim)', fontSize: 40, color: primary.known ? 'var(--green-bright)' : 'var(--red-bright)' }}>★</div>
+            <div className="identityInfo">
+              <h2>{primary.full_name || 'UNIDENTIFIED'}</h2>
+              <div className="identityMeta">
+                <div>SERVICE ID: {primary.army_id || 'NOT REGISTERED'}</div>
+                <div>RANK/GRADE: {primary.rank || 'N/A'}</div>
+                <div>ASSIGNED UNIT: {primary.unit || 'UNKNOWN'}</div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ 
-                  fontFamily: 'var(--font-display)', 
-                  fontSize: 36, 
-                  fontWeight: 900, 
-                  color: primary.known ? 'var(--green-bright)' : 'var(--red-bright)',
-                  letterSpacing: 2
-                }}>
-                  {primary.known ? 'ACCESS GRANTED' : 'LEVEL 1 ALERT'}
-                </div>
-                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--text-muted)', marginTop: 12 }}>
-                  CONFIDENCE: {Math.round((primary.confidence || 0.98) * 100)}%
-                </div>
-              </div>
-            </>
-          ) : (
-            <div style={{ gridColumn: '1 / -1', textAlign: 'center', opacity: 0.3, padding: '40px' }}>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, letterSpacing: 10 }}>SCANNING SECTOR...</div>
             </div>
-          )}
-        </div>
+            <div style={{ textAlign: 'right' }}>
+              <div style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 28,
+                fontWeight: 900,
+                color: primary.known ? 'var(--green-bright)' : 'var(--red-bright)',
+                letterSpacing: 2,
+                lineHeight: 1.1,
+              }}>
+                {primary.known ? 'ACCESS GRANTED' : 'LEVEL 1 ALERT'}
+              </div>
+              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginTop: 8 }}>
+                CONFIDENCE: {Math.round((primary.confidence || 0) * 100)}%
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Right Sidebar Area */}
@@ -260,7 +255,7 @@ export default function LiveDashboard({ token, onDetections }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               {displayEvents.map(evt => (
                 <div key={evt.id} style={{ display: 'flex', alignItems: 'center', gap: 15, padding: '12px', borderBottom: '1px solid var(--border)', background: evt.known ? 'transparent' : 'rgba(229,57,53,0.08)' }}>
-                  <img style={{ width: 44, height: 44, border: `1px solid ${evt.known ? 'var(--border2)' : 'var(--red)'}`, objectFit: 'cover' }} src={storageUrl(evt.photo_path)} alt="Evt" onError={e => e.target.src='https://via.placeholder.com/44'} />
+                  <div style={{ width: 44, height: 44, border: `1px solid ${evt.known ? 'var(--border2)' : 'var(--red)'}`, display: 'flex', alignItems: 'center', justifyContent: 'center', background: evt.known ? 'var(--green-dim)' : 'var(--red-dim)', flexShrink: 0, fontSize: 20, color: evt.known ? 'var(--green-bright)' : 'var(--red-bright)' }}>★</div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, fontSize: 16, color: evt.known ? 'var(--text)' : 'var(--red-bright)', textTransform: 'uppercase' }}>{evt.name}</div>
                     <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>{evt.army_id} • {evt.status}</div>

@@ -9,14 +9,217 @@ import {
   Stack,
   TextField,
   Typography,
+  Tabs,
+  Tab,
+  Box,
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import RefreshIcon from '@mui/icons-material/Refresh';
 import PersonAddIcon from '@mui/icons-material/PersonAdd';
 import UploadFileIcon from '@mui/icons-material/UploadFile';
-import { api } from '../services/api.js';
+import HistoryIcon from '@mui/icons-material/History';
+import { api, storageUrl } from '../services/api.js';
 
 const emptyForm = { army_id: '', full_name: '', rank: '', battalion: '', unit: '' };
+
+function PersonnelHistoryModal({ open, onClose, personnel }) {
+  const [history, setHistory] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [tabValue, setTabValue] = useState(0);
+
+  useEffect(() => {
+    if (open && personnel) {
+      loadHistory();
+    }
+  }, [open, personnel]);
+
+  const loadHistory = async () => {
+    setLoading(true);
+    try {
+      const { data } = await api.get('/attendance', {
+        params: { personnel_id: personnel.id, limit: 500 }
+      });
+      setHistory(data);
+    } catch (err) {
+      console.error('Failed to load history:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fmtTime = (ts) =>
+    ts
+      ? new Date(ts).toLocaleString('en-GB', {
+          day: '2-digit', month: 'short', year: 'numeric',
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          hour12: true
+        }).toUpperCase()
+      : '—';
+
+  // Group by date
+  const historyByDate = {};
+  history.forEach((log) => {
+    const date = new Date(log.timestamp || log.entry_time).toLocaleDateString('en-GB');
+    if (!historyByDate[date]) {
+      historyByDate[date] = [];
+    }
+    historyByDate[date].push(log);
+  });
+
+  const sortedDates = Object.keys(historyByDate).sort((a, b) => new Date(b) - new Date(a));
+
+  // Calculate stats
+  const totalEntries = history.filter(l => l.status === 'ENTRY').length;
+  const totalExits = history.filter(l => l.status === 'EXIT').length;
+  const currentlyInside = totalEntries - totalExits;
+
+  // Monthly breakdown
+  const monthlyStats = {};
+  history.forEach((log) => {
+    const date = new Date(log.timestamp || log.entry_time);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (!monthlyStats[monthKey]) {
+      monthlyStats[monthKey] = { entries: 0, exits: 0, days: new Set() };
+    }
+    if (log.status === 'ENTRY') monthlyStats[monthKey].entries++;
+    else monthlyStats[monthKey].exits++;
+    monthlyStats[monthKey].days.add(date.toLocaleDateString('en-GB'));
+  });
+
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+      <DialogTitle sx={{ fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 900, textTransform: 'uppercase' }}>
+        {personnel?.full_name} — Complete History
+      </DialogTitle>
+      <DialogContent sx={{ minHeight: 500 }}>
+        <Tabs value={tabValue} onChange={(e, v) => setTabValue(v)} sx={{ marginBottom: 3, marginTop: 2 }}>
+          <Tab label="Status Analyzer" />
+          <Tab label="Monthly Breakdown" />
+          <Tab label="Daily Details" />
+        </Tabs>
+
+        {/* Tab 1: Status Analyzer */}
+        {tabValue === 0 && (
+          <Box>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 20, marginBottom: 30 }}>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 20 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>Total Entries</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 900, color: 'var(--green-bright)' }}>{totalEntries}</div>
+              </div>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 20 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>Total Exits</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 900, color: 'var(--amber)' }}>{totalExits}</div>
+              </div>
+              <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 20 }}>
+                <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 10 }}>Currently Inside</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: 42, fontWeight: 900, color: currentlyInside > 0 ? 'var(--green-bright)' : 'var(--red-bright)' }}>
+                  {currentlyInside > 0 ? '✓' : '✗'}
+                </div>
+              </div>
+            </div>
+
+            <div style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 20 }}>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, textTransform: 'uppercase', marginBottom: 15 }}>Status Summary</div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>Total Access Events</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>{history.length}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', paddingBottom: 10, borderBottom: '1px solid var(--border)' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>Unique Days Active</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>{sortedDates.length}</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span style={{ fontFamily: 'var(--font-mono)' }}>Average Daily Events</span>
+                  <span style={{ fontFamily: 'var(--font-display)', fontWeight: 700 }}>{(history.length / Math.max(sortedDates.length, 1)).toFixed(1)}</span>
+                </div>
+              </div>
+            </div>
+          </Box>
+        )}
+
+        {/* Tab 2: Monthly Breakdown */}
+        {tabValue === 1 && (
+          <Box>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15 }}>
+              {Object.entries(monthlyStats).sort(([a], [b]) => b.localeCompare(a)).map(([month, stats]) => (
+                <div key={month} style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 20 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <div>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 800, textTransform: 'uppercase' }}>
+                        {new Date(`${month}-01`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' })}
+                      </div>
+                      <div style={{ fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--text-muted)', marginTop: 5 }}>
+                        {stats.days.size} active days
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 30 }}>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Entries</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: 'var(--green-bright)' }}>{stats.entries}</div>
+                      </div>
+                      <div style={{ textAlign: 'right' }}>
+                        <div style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Exits</div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontSize: 32, fontWeight: 900, color: 'var(--amber)' }}>{stats.exits}</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Box>
+        )}
+
+        {/* Tab 3: Daily Details */}
+        {tabValue === 2 && (
+          <Box>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 15, maxHeight: 400, overflowY: 'auto' }}>
+              {sortedDates.map((date) => {
+                const dayLogs = historyByDate[date];
+                const dayEntries = dayLogs.filter(l => l.status === 'ENTRY').length;
+                const dayExits = dayLogs.filter(l => l.status === 'EXIT').length;
+                return (
+                  <div key={date} style={{ background: 'var(--surface)', border: '1px solid var(--border2)', padding: 15 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                      <div style={{ fontFamily: 'var(--font-display)', fontSize: 16, fontWeight: 800, textTransform: 'uppercase' }}>
+                        {new Date(date).toLocaleDateString('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: '2-digit' })}
+                      </div>
+                      <div style={{ display: 'flex', gap: 20 }}>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>IN</div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--green-bright)' }}>{dayEntries}</div>
+                        </div>
+                        <div style={{ textAlign: 'center' }}>
+                          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)' }}>OUT</div>
+                          <div style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--amber)' }}>{dayExits}</div>
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {dayLogs.map((log) => (
+                        <div key={log.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 12, paddingBottom: 8, borderBottom: '1px solid var(--border)' }}>
+                          <span style={{ fontFamily: 'var(--font-mono)' }}>
+                            {log.status === 'ENTRY' ? '▲ ENTRY' : '▼ EXIT'} @ {log.camera_id}
+                          </span>
+                          <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--text-muted)' }}>
+                            {fmtTime(log.timestamp || log.entry_time)}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Box>
+        )}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={onClose}>Close</Button>
+      </DialogActions>
+    </Dialog>
+  );
+}
 
 export default function PersonnelPage() {
   const [rows, setRows]             = useState([]);
@@ -24,6 +227,8 @@ export default function PersonnelPage() {
   const [error, setError]           = useState('');
   const [deleteError, setDeleteError] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [selectedPersonnel, setSelectedPersonnel] = useState(null);
+  const [historyOpen, setHistoryOpen] = useState(false);
 
   const [regOpen, setRegOpen]   = useState(false);
   const [regForm, setRegForm]   = useState(emptyForm);
@@ -128,6 +333,7 @@ export default function PersonnelPage() {
 
       <Stack spacing={4}>
         {error && <Alert severity="error" sx={{ borderRadius: 0 }}>{error}</Alert>}
+        {deleteError && <Alert severity="error" sx={{ borderRadius: 0 }}>{deleteError}</Alert>}
         
         <div className="panel" style={{ padding: 25, borderBottom: 'none' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 20 }}>
@@ -167,13 +373,26 @@ export default function PersonnelPage() {
             )}
 
             {filtered.map((row) => (
-              <div className="gridRow personnelGrid" key={row.id}>
+              <div className="gridRow personnelGrid" key={row.id} style={{ cursor: 'pointer' }}>
                 <span className="armyId">{row.army_id || '—'}</span>
                 <span style={{ fontWeight: 800, textTransform: 'uppercase', letterSpacing: 1 }}>{row.full_name || '—'}</span>
                 <span className="rankBadge">{row.rank || '—'}</span>
                 <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{row.battalion || '—'}</span>
                 <span style={{ fontSize: 13, color: 'var(--text-dim)' }}>{row.unit || '—'}</span>
-                <div style={{ textAlign: 'right' }}>
+                <div style={{ textAlign: 'right', display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
+                  <Button
+                    color="info"
+                    size="small"
+                    variant="outlined"
+                    startIcon={<HistoryIcon />}
+                    onClick={() => {
+                      setSelectedPersonnel(row);
+                      setHistoryOpen(true);
+                    }}
+                    sx={{ border: 'none', '&:hover': { background: 'var(--surface2)' } }}
+                  >
+                    HISTORY
+                  </Button>
                   <Button
                     color="error"
                     size="small"
@@ -192,61 +411,62 @@ export default function PersonnelPage() {
         </div>
       </Stack>
 
+      {/* Personnel History Modal */}
+      <PersonnelHistoryModal
+        open={historyOpen}
+        onClose={() => setHistoryOpen(false)}
+        personnel={selectedPersonnel}
+      />
+
       <Dialog open={regOpen} onClose={closeReg} fullWidth maxWidth="sm">
         <DialogTitle>Personnel Enrolment</DialogTitle>
         <DialogContent className="dialogForm">
           <div className="dialogClassification">
             BIOMETRIC REGISTRATION FORM — SEC-LEVEL 4 AUTHORIZATION REQUIRED
           </div>
-
-          {regError && <Alert severity="error" sx={{ mb: 3 }}>{regError}</Alert>}
-
-          <Stack spacing={3}>
-            {fields.map(({ key, label }) => (
+          {regError && <Alert severity="error" sx={{ my: 2, borderRadius: 0 }}>{regError}</Alert>}
+          <Stack spacing={3} sx={{ mt: 3 }}>
+            {fields.map((field) => (
               <TextField
-                key={key}
-                label={label}
+                key={field.key}
+                label={field.label.toUpperCase()}
+                value={regForm[field.key]}
+                onChange={(e) => setRegForm({ ...regForm, [field.key]: e.target.value })}
                 fullWidth
-                value={regForm[key]}
-                onChange={(e) => setRegForm({ ...regForm, [key]: e.target.value })}
               />
             ))}
-
-            <div style={{ marginTop: 10 }}>
+            <div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: 14, fontWeight: 700, textTransform: 'uppercase', marginBottom: 12 }}>
+                Face Photos
+              </div>
+              <Button
+                variant="outlined"
+                startIcon={<UploadFileIcon />}
+                onClick={() => fileRef.current?.click()}
+                fullWidth
+              >
+                SELECT IMAGES
+              </Button>
               <input
                 ref={fileRef}
                 type="file"
                 multiple
                 accept="image/*"
                 style={{ display: 'none' }}
-                onChange={(e) => setRegFiles(e.target.files)}
+                onChange={(e) => setRegFiles(Array.from(e.target.files || []))}
               />
-              <Button
-                variant="outlined"
-                fullWidth
-                startIcon={<UploadFileIcon />}
-                onClick={() => fileRef.current.click()}
-                sx={{ height: 60, borderStyle: 'dashed' }}
-              >
-                {regFiles.length
-                  ? `${regFiles.length} IMAGES SELECTED`
-                  : 'UPLOAD BIOMETRIC SAMPLES (PHOTOS)'}
-              </Button>
-              <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', marginTop: 10, textAlign: 'center', letterSpacing: 1 }}>
-                MINIMUM 3 HIGH-RESOLUTION SAMPLES REQUIRED FOR OPTIMAL ACCURACY
-              </div>
+              {regFiles.length > 0 && (
+                <div style={{ marginTop: 12, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--green-bright)' }}>
+                  ✓ {regFiles.length} image(s) selected
+                </div>
+              )}
             </div>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 4, background: 'var(--bg3)' }}>
-          <Button onClick={closeReg} sx={{ color: 'var(--text-muted)' }}>ABORT</Button>
-          <Button 
-            variant="contained" 
-            onClick={submitReg} 
-            disabled={regSaving}
-            sx={{ px: 4, height: 50, background: 'var(--green)', color: '#000' }}
-          >
-            {regSaving ? 'PROCESSING...' : 'CONFIRM ENLISTMENT'}
+        <DialogActions>
+          <Button onClick={closeReg}>CANCEL</Button>
+          <Button onClick={submitReg} disabled={regSaving} variant="contained" sx={{ background: 'var(--green)', color: '#000' }}>
+            {regSaving ? 'ENROLLING...' : 'ENROLL'}
           </Button>
         </DialogActions>
       </Dialog>

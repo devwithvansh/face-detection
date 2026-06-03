@@ -86,16 +86,17 @@ function LoginPage({ onLogin, externalError }) {
   };
 
   return (
-    <div className="loginPage">
-      <div className="loginCard">
-        <div className="loginLogo">
-          <div className="loginShield"><ShieldIcon sx={{ fontSize: 80 }} /></div>
-          <div className="loginTitle">ARMY COMMAND</div>
-          <div className="loginSubtitle">Surveillance & Access Control</div>
+    <div className="loginPageEnhanced">
+      <div className="loginBackdrop"></div>
+      <div className="loginCardEnhanced">
+        <div className="loginLogoEnhanced">
+          <div className="loginShieldEnhanced"><ShieldIcon sx={{ fontSize: 80 }} /></div>
+          <div className="loginTitleEnhanced">ARMY COMMAND</div>
+          <div className="loginSubtitleEnhanced">Surveillance & Access Control</div>
         </div>
-        <div className="loginClassification">RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY</div>
-        <div className="loginFields">
-          <div className="loginField">
+        <div className="loginClassificationEnhanced">RESTRICTED ACCESS — AUTHORISED PERSONNEL ONLY</div>
+        <div className="loginFieldsEnhanced">
+          <div className="loginFieldEnhanced">
             <label>Operator ID</label>
             <input
               type="text"
@@ -103,9 +104,10 @@ function LoginPage({ onLogin, externalError }) {
               onChange={(e) => setCreds({ ...creds, username: e.target.value })}
               onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
               autoComplete="username"
+              placeholder="Enter your operator ID"
             />
           </div>
-          <div className="loginField">
+          <div className="loginFieldEnhanced">
             <label>Passphrase</label>
             <input
               type="password"
@@ -117,13 +119,17 @@ function LoginPage({ onLogin, externalError }) {
             />
           </div>
           {(externalError || error) && (
-            <div className="loginError" style={{ color: 'var(--red-bright)', textAlign: 'center', fontFamily: 'var(--font-mono)', fontSize: 14 }}>
+            <div className="loginErrorEnhanced">
               ⚠ {externalError || error}
             </div>
           )}
-          <Button className="loginBtn" onClick={handleSubmit} disabled={loading} fullWidth>
+          <Button className="loginBtnEnhanced" onClick={handleSubmit} disabled={loading} fullWidth>
             {loading ? 'AUTHENTICATING...' : 'AUTHENTICATE'}
           </Button>
+        </div>
+        <div className="loginFooterEnhanced">
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2 }}>SECURE MILITARY SYSTEM</div>
+          <div style={{ fontFamily: 'var(--font-mono)', fontSize: 10, color: 'var(--text-muted)', letterSpacing: 2, marginTop: 4 }}>© COMMAND CENTER</div>
         </div>
       </div>
     </div>

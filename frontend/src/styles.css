@@ -34,7 +34,7 @@
   --font-mono:     'JetBrains Mono', monospace;
 
   --sidebar-w:     280px;
-  --topbar-h:      110px;
+  --topbar-h:      90px;
   --radius:        2px;
   --radius-lg:     4px;
 }
@@ -186,8 +186,8 @@ body::after {
   border-bottom: 1px solid var(--border);
   display: flex;
   align-items: center;
-  padding: 0 40px;
-  gap: 40px;
+  padding: 0 30px;
+  gap: 30px;
 }
 
 .topbarTitle {
@@ -196,7 +196,7 @@ body::after {
 
 .topbarTitleMain {
   font-family: var(--font-display);
-  font-size: 42px;
+  font-size: 34px;
   font-weight: 900;
   letter-spacing: 4px;
   color: var(--text);
@@ -234,7 +234,7 @@ body::after {
 
 .topbarInfoValue {
   font-family: var(--font-display);
-  font-size: 24px;
+  font-size: 20px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: 1px;
@@ -262,6 +262,12 @@ body::after {
   background: var(--surface);
   border: 1px solid var(--border2);
   cursor: pointer;
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 400;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: var(--text-dim);
 }
 
 /* ================================================================
@@ -278,6 +284,11 @@ body::after {
 
 .mainContent {
   flex: 1;
+  overflow: hidden;
+  padding: 0;
+}
+
+.mainContent.scrollable {
   overflow-y: auto;
   padding: 40px;
 }
@@ -316,11 +327,11 @@ body::after {
 
 .liveDashboard {
   display: grid;
-  grid-template-columns: 1fr 450px;
+  grid-template-columns: 1fr 420px;
   grid-template-rows: auto 1fr auto;
-  gap: 30px;
+  gap: 12px;
   height: calc(100vh - var(--topbar-h));
-  padding: 30px;
+  padding: 12px 24px 16px;
   box-sizing: border-box;
   overflow: hidden;
 }
@@ -330,12 +341,15 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: nowrap;
+  min-width: 0;
 }
 
 .feedTitleArea {
   display: flex;
   align-items: baseline;
   gap: 20px;
+  flex-shrink: 0;
 }
 
 .feedTitle {
@@ -347,14 +361,15 @@ body::after {
 
 .topStats {
   display: flex;
-  gap: 20px;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .statBox {
   background: var(--surface);
   border: 1px solid var(--border2);
-  padding: 10px 25px;
-  min-width: 150px;
+  padding: 8px 18px;
+  min-width: 120px;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -362,7 +377,7 @@ body::after {
 
 .statBoxLabel {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: 10px;
   color: var(--text-muted);
   text-transform: uppercase;
   letter-spacing: 1px;
@@ -370,32 +385,36 @@ body::after {
 
 .statBoxValue {
   font-family: var(--font-display);
-  font-size: 36px;
+  font-size: 32px;
   font-weight: 900;
 }
 
 .liveCenter {
   display: flex;
   flex-direction: column;
-  gap: 25px;
+  gap: 0;
   min-height: 0;
+  overflow: hidden;
 }
 
 .videoContainer {
   flex: 1;
   background: #000;
   border: 1px solid var(--border2);
+  border-bottom: none;
   position: relative;
   overflow: hidden;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
+  justify-content: stretch;
+  min-height: 0;
 }
 
 .videoContainer img {
   width: 100%;
   height: 100%;
-  object-fit: contain;
+  object-fit: cover;
+  display: block;
 }
 
 .videoOverlay {
@@ -421,44 +440,48 @@ body::after {
 .identityCard {
   background: var(--surface);
   border: 1px solid var(--border2);
-  padding: 30px;
+  border-top: 2px solid var(--green-dim);
+  padding: 16px 24px;
   display: grid;
-  grid-template-columns: 160px 1fr 220px;
-  gap: 40px;
+  grid-template-columns: 90px 1fr 200px;
+  gap: 24px;
   align-items: center;
-  box-shadow: 0 10px 40px rgba(0,0,0,0.6);
+  flex-shrink: 0;
 }
 
 .identityAvatar {
-  width: 160px;
-  height: 160px;
+  width: 90px;
+  height: 90px;
   border: 1px solid var(--green);
   object-fit: cover;
 }
 
 .identityInfo h2 {
   font-family: var(--font-display);
-  font-size: 52px;
+  font-size: 36px;
   font-weight: 900;
   letter-spacing: 2px;
   text-transform: uppercase;
   color: var(--green-bright);
+  line-height: 1;
+  margin-bottom: 6px;
 }
 
 .identityMeta {
   font-family: var(--font-mono);
-  font-size: 16px;
+  font-size: 12px;
   color: var(--text-dim);
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 3px;
 }
 
 .liveRight {
   display: flex;
   flex-direction: column;
-  gap: 30px;
+  gap: 12px;
   min-height: 0;
+  overflow: hidden;
 }
 
 .panel {
@@ -493,21 +516,21 @@ body::after {
   grid-column: 1 / -1;
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 30px;
+  gap: 10px;
 }
 
 .bottomStatItem {
   background: var(--surface);
   border: 1px solid var(--border2);
-  padding: 20px 30px;
+  padding: 10px 18px;
   display: flex;
   align-items: center;
-  gap: 25px;
+  gap: 14px;
 }
 
-.bottomStatIcon { font-size: 32px; }
-.bottomStatLabel { font-family: var(--font-mono); font-size: 12px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
-.bottomStatValue { font-family: var(--font-display); font-size: 42px; font-weight: 900; }
+.bottomStatIcon { font-size: 22px; flex-shrink: 0; }
+.bottomStatLabel { font-family: var(--font-mono); font-size: 10px; color: var(--text-muted); text-transform: uppercase; letter-spacing: 1px; }
+.bottomStatValue { font-family: var(--font-display); font-size: 28px; font-weight: 900; line-height: 1; }
 
 /* ================================================================
    PERSONNEL & ACCESS LOGS TABLES
